@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalFoundationApi::class)
 
-package com.heli.flowmind
+package com.heli.flowmind.base
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +76,7 @@ import com.tencent.kuikly.core.views.KeyboardParams
 import com.tencent.kuikly.core.views.ModalView
 import kotlinx.coroutines.delay
 import kotlin.math.max
+import kotlin.math.min
 
 fun Modifier.backgroundColor(color: Color): Modifier {
     return this.background(color)
@@ -449,7 +450,7 @@ fun Modifier.appearPercentage(
             val visibleWidth = layoutBounds.width.coerceAtMost(bounds.width.toFloat())
             val percentageHeight = visibleHeight / bounds.height.toFloat()
             val percentageWidth = visibleWidth / bounds.width.toFloat()
-            onPercentageChanged(kotlin.math.min(percentageWidth, percentageHeight))
+            onPercentageChanged(min(percentageWidth, percentageHeight))
         }
     }
 )
