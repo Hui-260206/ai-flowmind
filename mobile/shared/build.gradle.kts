@@ -62,7 +62,8 @@ kotlin {
                 implementation("com.tencent.kuikly-open:core:${Version.getKuiklyVersion()}")
                 implementation("com.tencent.kuikly-open:core-annotations:${Version.getKuiklyVersion()}")
                 implementation("com.tencent.kuikly-open:compose:${Version.getKuiklyVersion()}")
-
+                // KMP 时间库，提供跨平台 Clock.System.now()，替代 JVM 专属的 System.currentTimeMillis()
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
             }
         }
         val commonTest by getting {
