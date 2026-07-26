@@ -13,16 +13,19 @@ import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.core.views.KeyboardParams
 
 @Composable
 fun SessionInputBar(
     value: String,
+    modifier: Modifier = Modifier,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    onKeyboardHeightChange: (KeyboardParams) -> Unit,
 ) {
     // 外层 Box 让整个输入条在底部栏内水平居中
     Box(
-        modifier = Modifier.fillMaxWidth().padding(AppDimens.InputOuterPadding),
+        modifier = modifier.fillMaxWidth().padding(AppDimens.InputOuterPadding),
         contentAlignment = Alignment.Center,
     ) {
         // 居中显示的输入框容器（占 92% 宽，左右留白即为"居中"效果）
@@ -39,6 +42,7 @@ fun SessionInputBar(
                 placeholder = "输入消息...",
                 placeholderColor = AppColors.Hint,
                 onValueChange = onValueChange,
+                keyboardHeightChange = onKeyboardHeightChange,
             )
             Button(
                 modifier = Modifier.align(Alignment.CenterEnd)
