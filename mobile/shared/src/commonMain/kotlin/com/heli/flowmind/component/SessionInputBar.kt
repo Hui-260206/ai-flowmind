@@ -25,7 +25,11 @@ fun SessionInputBar(
 ) {
     // 外层 Box 让整个输入条在底部栏内水平居中
     Box(
-        modifier = modifier.fillMaxWidth().padding(AppDimens.InputOuterPadding),
+        modifier = modifier
+            .fillMaxWidth()
+            // 全宽不透明背景:作为浮层时遮住下层滚动的消息,避免从两侧漏出
+            .background(AppColors.Background)
+            .padding(AppDimens.InputOuterPadding),
         contentAlignment = Alignment.Center,
     ) {
         // 居中显示的输入框容器（占 92% 宽，左右留白即为"居中"效果）

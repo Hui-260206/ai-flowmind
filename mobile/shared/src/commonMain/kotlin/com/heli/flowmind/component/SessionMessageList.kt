@@ -16,12 +16,16 @@ import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.material3.Text
+import com.tencent.kuikly.compose.ui.unit.Dp
+import com.tencent.kuikly.compose.ui.unit.dp
 
 
 @Composable
 fun SessionMessageList(
     messages: List<Message>,
     modifier: Modifier = Modifier,
+    // 底部留白 = 输入栏高度 + 键盘高度,让最后一条消息能滚到浮层输入栏上方的可见区
+    bottomInset: Dp = 0.dp,
 ) {
     if (messages.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -39,7 +43,10 @@ fun SessionMessageList(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = AppDimens.MessageSpacing),
+        contentPadding = PaddingValues(
+            top = AppDimens.MessageSpacing,
+            bottom = AppDimens.MessageSpacing + bottomInset,
+        ),
     ) {
         items(messages, key = { it.id }) { msg ->
             MessageBubble(message = msg)
