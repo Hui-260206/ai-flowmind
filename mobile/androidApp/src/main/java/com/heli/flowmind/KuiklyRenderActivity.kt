@@ -65,6 +65,8 @@ class KuiklyRenderActivity : AppCompatActivity(), KuiklyRenderViewBaseDelegatorD
 
     override fun onResume() {
         super.onResume()
+        // 退后台再回前台时系统会清掉沉浸式 flag，需在 onResume 重设，否则键盘弹出会触发窗口 resize
+        setupImmersiveMode()
         kuiklyRenderViewDelegator.onResume()
     }
 
