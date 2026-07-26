@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+注意：
+- 为了学习开发，开发需求的时候，需要给我提供建议，并且教会我设计出可维护、符合现在软件工程思想的架构。
+- 尽量让我手动修改，如果没有我让修改代码，你就不要直接修改。
+
 ## 项目概述
 
 `flow-mind` 由两部分组成：
