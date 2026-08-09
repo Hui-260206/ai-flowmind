@@ -3,129 +3,84 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 注意：
-- 为了学习开发，开发需求的时候，需要给我提供建议，并且教会我设计出可维护、符合现在软件工程思想的架构。
-- 尽量让我手动修改，如果没有我让修改代码，你就不要直接修改。
+- 为了学习开发，开发需求时先给建议、教我设计可维护、符合现代软件工程思想的架构。
+- 尽量让我手动改代码；未明确要求前不要直接修改。
 
 ## 项目概述
 
 `flow-mind` 由两部分组成：
 
-- **客户端**（`mobile/`）：基于 **Kuikly**（腾讯的 Kotlin Multiplatform 跨平台框架）开发，UI 在
-  `mobile/shared` 模块中用 Kotlin / Kuikly Compose 编写一次，在 **Android 与 iOS** 上原生渲染。
-  **HarmonyOS（OHOS）暂不实现**——仓库里虽保留了 `ohosApp/` 及相关 `.ohos.gradle.kts`、`runOhosApp.sh` 等脚手架，
-  但当前不维护、不在构建范围内，改动客户端时无需顾及。
-- **后端**（`serviecs/`）：采用 **Python + FastAPI**（目前为空目录，待搭建）。
+- **客户端**（`mobile/`）：基于 **Kuikly**（腾讯 Kotlin Multiplatform 框架），UI 在 `mobile/shared` 用 Kotlin / Kuikly Compose 编写一次，在 **Android / iOS** 原生渲染。**HarmonyOS（OHOS）脚手架保留但不维护、不在构建范围内。**
+- **后端**（`services/`）：**Go API 服务 + Python AI 服务** 双服务架构，目前均为空目录、待搭建。
+  - `go-api/`：Go 实现的 REST/gRPC 服务，移动端唯一对外 API，负责会话/消息业务、匿名设备隔离、MySQL 持久化、上下文控制、Redis（幂等/锁/限流）、调用 Python gRPC。
+  - `ai-service/`：Python + FastAPI 的 AI 服务，负责模型调用、Provider 适配、参数校验、AI 错误转换，经 gRPC 被 Go 调用；模型密钥仅此侧保存、不对公网暴露。
+  - 依赖 **MySQL**（事实来源）、**Redis**（幂等/锁/限流）、**RabbitMQ**（可选，Outbox 异步事件）。
+  - 完整设计见 `docs/MVP_REQUIREMENTS.md` / `docs/MVP_EXECUTION_PLAN.md`。
 
-Kotlin 包名：`com.heli.flowmind`。Kuikly 运行时版本为 `2.7.0-2.1.21`，定义在
-`mobile/buildSrc/src/main/java/KotlinBuildVar.kt`（`Version` / `BuildPlugin` 对象）——如需改版本只改这里，
-不要去各个 `build.gradle.kts` 里改。
+Kotlin 包名 `com.heli.flowmind`；Kuikly 运行时 `2.7.0-2.1.21`，定义在 `mobile/buildSrc/.../KotlinBuildVar.kt`（`Version`/`BuildPlugin`），改版本只改这里。
 
-## 跨平台流水线如何运转
+## 跨平台流水线
 
-- `mobile/shared` 是唯一的 KMP 模块，也是 UI / 业务逻辑唯一的存放处。它面向
-  `androidTarget`、`iosX64/iosArm64/iosSimulatorArm64`、`js(IR)`（browser）三个目标。所有真正的代码都在
-  `src/commonMain` 下——没有任何带逻辑的平台特定 source set。
-- **页面（page）** 是一个用 `@Page("page_name", ...)` 注解、继承 `base.BasePage`
-  （继承自 Kuikly 的 `ComposeContainer`）的类。页面在 `willInit()` 中调用 `setContent { ... }` 来承载其 Compose UI。
-  参见 `page/SessionPage.kt`——它的页面名 `flowmind_session_page` 是各端壳工程默认加载的页面。
-- **KSP** 会处理 `@Page` 注解（通过 `core-ksp` 产物）并生成页面注册表。Gradle 属性 `-PpageName=<name>`
-  可将一次 JS 构建限定到指定页面（"分包构建"）；不传则构建全部页面。详见 `shared/build.gradle.kts` 中的
-  `getPageName()` 与 `ksp { arg(...) }`。
-- 各端壳工程都嵌入一个 Kuikly 渲染视图，并指向某个页面名：
-  - **Android** `androidApp`：`KuiklyRenderActivity` 承载 `KuiklyRenderViewBaseDelegator`，默认加载 `flowmind_session_page`。
-  - **iOS** `iosApp`：SwiftUI 中的 `KuiklyRenderViewPage(pageName:data:)`（见 `ContentView.swift`）。
-  - ~~HarmonyOS `ohosApp`~~：暂不实现，参见"项目概述"。
+- `mobile/shared` 是唯一的 KMP 模块，代码全在 `src/commonMain`（无平台特定 source set）；目标为 `androidTarget`、`ios*`、`js(IR)`。
+- **页面** = `@Page("page_name")` 注解、继承 `base.BasePage` 的类，在 `willInit()` 调 `setContent { ... }`。默认页面 `flowmind_session_page`（`page/SessionPage.kt`）。
+- **KSP** 处理 `@Page` 生成页面注册表；`-PpageName=<name>` 可分包构建单一页面（`shared/build.gradle.kts` 的 `getPageName()`）。
+- 各端壳工程嵌入 Kuikly 渲染视图并指向页面名：Android `KuiklyRenderActivity`、iOS `KuiklyRenderViewPage(pageName:data:)`（见 `ContentView.swift`）。
 
-## 原生桥（Kuikly Module 模式）
+## 原生桥（BridgeModule）
 
-`base/BridgeModule.kt`（`MODULE_NAME = "HRBridgeModule"`）是 common→native 的桥。它通过
-`callNativeMethod`（异步）和 `syncCallNativeMethod`（同步）调用原生方法——这些是对原生能力的*声明*
-（日志、toast、开关页面、SSO 请求、缓存读写、离线包更新、上报等）。各端实现对应方法：
-- Android：`androidApp/.../module/KRBridgeModule.kt`（在 `KuiklyRenderActivity.registerExternalModule` 中注册）。
-- iOS：iOS 侧的原生模块。
+`base/BridgeModule.kt`（`HRBridgeModule`，`MODULE_NAME="HRBridgeModule"`）是 common→native 桥，经 `callNativeMethod`（异步）/ `syncCallNativeMethod`（同步）调用原生能力（日志、toast、开关页面、SSO、缓存、离线包、上报等）。各端实现对应方法：
+- Android：`androidApp/.../module/KRBridgeModule.kt`（在 `KuiklyRenderActivity.registerExternalModule` 注册）。
+- iOS：iOS 侧原生模块。
 
-`BasePage.createExternalModules()` 会为每个页面注册 `BridgeModule`。在非 Composable 代码里调用它时，
-用 `base/IPagerIdKtx.kt` 中的 `IPagerId.bridgeModule` 扩展（底层是 `Utils.bridgeModule(pagerId)`）。
-`base/Utils.kt` 还提供 `currentBridgeModule()` / `logToNative(content)`。
+非 Composable 代码调用时用 `base/IPagerIdKtx.kt` 的 `IPagerId.bridgeModule`；`base/Utils.kt` 另提供 `currentBridgeModule()` / `logToNative(content)`。图片/日志/字体/路由/线程/崩溃等适配器在 Android `KuiklyRenderActivity.initKuiklyAdapter()` 注册。
 
-各类适配器（图片加载、日志、字体、颜色解析、路由、线程、崩溃处理）在 Android 的
-`KuiklyRenderActivity.initKuiklyAdapter()` 中注册。（OHOS 的 `ohosApp/.../kuikly/adapter/` 随鸿蒙端一并搁置。）
-
-## 常用构建 / 运行命令
-
-所有 Gradle 命令都在 `mobile/` 目录下用 wrapper 执行（`./gradlew`）。
-Gradle 8.5，AGP 7.4.2，Kotlin 2.1.21。
+## 构建 / 运行（均在 `mobile/` 用 `./gradlew`；Gradle 8.5 / AGP 7.4.2 / Kotlin 2.1.21）
 
 ```sh
-# Android debug APK
-./gradlew :androidApp:assembleDebug
-# 通过 Android Studio 在连接的设备上运行/安装，或：
-./gradlew :androidApp:installDebug
-
-# iOS —— shared 框架通过 CocoaPods 构建。首次准备：
-./gradlew :shared:generateDummyFramework      # 生成占位框架，pod install 才能成功
-cd iosApp && pod install && cd ..             # 之后用 Xcode 打开 iosApp/iosApp.xcworkspace
-# 后续 shared 改动通过 pod 的 "Build shared" 脚本阶段重新构建框架。
-
-# 单页面 JS 产物（输出：shared/build/js/packages/.../nativevue2.js，文件名由 webpackTask 指定）
-./gradlew :shared:jsBrowserProductionWebpack
-# 分包构建 —— 只构建指定页面：
-./gradlew :shared:jsBrowserProductionWebpack -PpageName=flowmind_session_page
+./gradlew :androidApp:assembleDebug          # Android debug APK
+./gradlew :androidApp:installDebug            # 安装到设备
+./gradlew :shared:generateDummyFramework      # iOS 首次：生成占位框架后 pod install 才能成功
+cd iosApp && pod install && cd ..             # Xcode 打开 iosApp/iosApp.xcworkspace
+./gradlew :shared:jsBrowserProductionWebpack                      # 全量 JS 产物
+./gradlew :shared:jsBrowserProductionWebpack -PpageName=flowmind_session_page  # 分包
+cd mobile && npm run serve                    # 本地热更新：:8017 静态服务 + :8083 whistle
 ```
 
-### 本地开发 / 热更新：静态服务器 + whistle
+调试经 HTTP 拉 JS（`nv_js`）与 `.so`（`nv_so`）；代理规则 `mobile/.whistle.js` 转发到 `127.0.0.1:8017`，静态路径见 `static_server/serve/config/serve.conf.js`。
 
-Kuikly 调试时通过 HTTP 拉取 JS（`nv_js`）和原生 `.so`（`nv_so`）。仓库自带一个 Koa 服务器，
-负责托管 bundle 并启动 whistle 代理：
+## 后端（services/）要点
 
-```sh
-cd mobile && npm run serve        # 在 :8017 提供静态服务，在 :8083 启动 whistle（UI 在 :8017）
+```text
+Kuikly 移动端 ──HTTPS JSON──▶ Go API ──gRPC──▶ Python AI ──▶ 大模型 Provider
+                  ├ MySQL(事实来源) ├ Redis(幂等/锁/限流) └ RabbitMQ(可选异步)
 ```
 
-代理规则在 `mobile/.whistle.js` 中，把 `.../debug/nv_js/...` 和 `.../debug/nv_so/...`
-转发到 `127.0.0.1:8017`。把 debug 包指向这个 host，即可在不全量重编译的情况下迭代 JS bundle。
-托管的静态路径配置在 `static_server/serve/config/serve.conf.js`（`../../static`）。
-
-> 鸿蒙（OHOS）原有一套独立的 Gradle 体系（`settings.ohos.gradle.kts` / `build.ohos.gradle.kts` /
-> `ohosApp/runOhosApp.sh`，依赖专用 Kotlin 工具链 `2.0.21-KBA-010` 与 DevEco Studio SDK）。**当前暂不实现**，
-> 上述脚手架保留但不维护，无需运行。
-
-## 后端（backend/）
-
-后端采用 **Python + FastAPI**，目录目前为空、待搭建。后续在此目录内组织 FastAPI 应用
-（如 `app/main.py` 入口、路由/模型/依赖按需分层），通过 HTTP 向客户端提供会话相关接口；
-客户端侧经由 `BridgeModule`（见上）或独立的网络模块与之通信。搭建时建议使用 `uv` / `pip` +
-`requirements.txt` 或 `pyproject.toml` 管理依赖，并以 `uvicorn` 启动开发服务器。
+- Go API 是移动端唯一业务 API；Python AI 不暴露公网、不持会话所有权与业务库。
+- MySQL 是聊天记录唯一事实来源，Redis/进程内存不替代它；RabbitMQ 只处理异步副作用，不进同步主链路。
+- 对外 REST（MVP）：`GET /healthz`、`/readyz`；`POST/GET /api/v1/sessions`；`GET/POST/DELETE /api/v1/sessions/{id}/messages`。业务请求带 `X-Client-ID`（匿名 UUID）与 `X-Request-ID`；错误格式见需求文档第 8 节。
+- 当前 `go-api`/`ai-service` 为空：先定接口/边界（proto、OpenAPI、数据模型、Redis Key），再做 Go 工程、数据层、聊天 API，接 Python gRPC，补 Redis 与可选 Outbox/RabbitMQ，最后联调达标再接入 `data/RemoteChatRepository.kt`（阶段 9）。
 
 ## 测试
 
 ```sh
-./gradlew :shared:allTests      # 所有 KMP 目标
-./gradlew :shared:test          # 仅 JVM（commonTest）—— 使用 kotlin("test")
+./gradlew :shared:allTests   # 所有 KMP 目标
+./gradlew :shared:test        # 仅 JVM（commonTest），使用 kotlin("test")
 ```
 
-`commonTest` 是唯一的测试 source set；目前没有任何平台特定的测试。
+`commonTest` 是唯一测试 source set。
 
-## 编辑代码时的架构要点
+## 编辑代码架构要点
 
-- **Compose 原语来自 `com.tencent.kuikly.compose.*`，而不是 `androidx.compose.*`。**
-  `BasicWidget.kt` 在 Kuikly Compose 之上重新实现了常用辅助函数（`TextField`、`Button`、`Modal`、
-  `margin`、`borderRadius`、`touchListener`、`willAppear` 等）——优先复用这些，不要重造。注意
-  `padding`/`margin`/`height`/`width` 都有 `Float` 重载版本，内部通过 `.dp` 转换。
-- **状态管理：** `state/SessionViewModel.kt` 是一个纯 Compose state 持有者
-  （`mutableStateOf` / `mutableStateListOf`），已通过 `remember { SessionViewModel() }` 接入 `SessionScreen`，
-  输入栏的 `value`/`onValueChange`/`onSend` 全部走 viewModel。新增会话相关状态时优先扩展这个 ViewModel。
-- **模型** 放在 `model/`（`Message`、`MessageRole`、`MessageStatus`）；**组件** 放在 `component/`；
-  **页面** 放在 `page/`。保持分层：`page` → `component` → `base`/`state`/`model`。
-- `BasePage` 处理深色模式（`isNightMode`，以 `isNightMode` 页面参数为键）并关闭了调试 UI 检查器
-  （`debugUIInspector() = false`）——继承 `BasePage` 而非直接继承 `ComposeContainer`，以保留这些行为。
-- iOS 部署目标 14.1；`shared` 以**静态**框架发布（`isStatic = true`），资源来自 `src/commonMain/assets/**`。
+- Compose 原语来自 `com.tencent.kuikly.compose.*`（非 `androidx.compose.*`）。`base/BasicWidget.kt` 已封装 `TextField`/`Button`/`Modal`/`margin`/`borderRadius` 等，优先复用；`padding`/`margin`/`height`/`width` 有 `Float` 重载（内部 `.dp`）。
+- 状态：`state/SessionViewModel.kt` 是纯 Compose state 持有者（`mutableStateOf`/`mutableStateListOf`），经 `remember` 接入 `SessionScreen`；输入栏 `value`/`onValueChange`/`onSend` 走此 ViewModel，新增状态优先扩展它。
+- 分层：`page` → `component` → `base`/`state`/`model`/`data`；模型在 `model/`（`Message`/`MessageRole`/`MessageStatus`），组件在 `component/`，页面在 `page/`。
+- 继承 `BasePage`（非直接 `ComposeContainer`）以保留深色模式（`isNightMode`）与关闭调试检查器等行为。
+- iOS 部署目标 14.1；`shared` 以静态框架发布（`isStatic = true`），资源来自 `src/commonMain/assets/**`。
 
 ## 仓库注意事项
 
-- `settings.gradle.kts` include 了 `:h5App` 和 `:miniApp`，但仓库里这两个目录并不存在。
-  若 Gradle sync 因此报错，把它们注释掉或创建对应模块即可。
-- 解析 Kuikly 产物必须能访问腾讯 Maven 镜像（`mirrors.tencent.com/nexus/repository/maven-tencent/`），
-  请确保网络可达。
-- `*.js` 和 `*.so` 在仓库根被 gitignore——构建出的 JS bundle 和原生库不会提交。dev server 托管的
-  `static/` 目录同样是生成物，不入库。
+- `settings.gradle.kts` 含不存在的 `:h5App`/`:miniApp`，Gradle sync 报错时注释掉或创建对应模块。
+- 解析 Kuikly 产物需访问腾讯 Maven 镜像（`mirrors.tencent.com/.../maven-tencent/`）。
+- `*.js`/`*.so` 及 `static/` 被 gitignore，构建产物不入库。
+- OHOS Gradle 体系（`settings.ohos.gradle.kts` 等）保留但不维护、无需运行。
+- 禁止提交真实密码与 API Key。
