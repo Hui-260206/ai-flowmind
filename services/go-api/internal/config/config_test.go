@@ -5,7 +5,15 @@ import (
 	"time"
 )
 
+func setMySQLTestEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("MYSQL_DATABASE", "flowmind_test")
+	t.Setenv("MYSQL_USER", "flowmind_test")
+	t.Setenv("MYSQL_PASSWORD", "test-password")
+}
+
 func TestLoadDefaultsHTTPAddr(t *testing.T) {
+	setMySQLTestEnv(t)
 	t.Setenv("GO_HTTP_ADDR", "")
 	// An empty environment value is intentionally invalid rather than treated
 	// as an omitted value.
@@ -27,6 +35,7 @@ func TestLoadDefaultsHTTPAddr(t *testing.T) {
 }
 
 func TestLoadDurations(t *testing.T) {
+	setMySQLTestEnv(t)
 	t.Setenv("GO_HTTP_ADDR", ":8080")
 	t.Setenv("GO_SHUTDOWN_TIMEOUT", "2s")
 	t.Setenv("GO_READ_HEADER_TIMEOUT", "300ms")

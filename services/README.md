@@ -36,6 +36,8 @@ services/
 
 开发阶段复制 `.env.example` 为 `.env`，连接 Mac 本机安装的 MySQL/Redis；`.env`、密钥和数据库持久化目录不得提交。
 
+本地启动 Go API 时推荐使用 `make dev-go`，该命令会将私有的 `services/.env` 注入当前进程。Go 程序本身只读取进程环境变量，不负责解析或搜索 `.env`。使用 IDE 时，应在 Run/Debug Configuration 中显式配置环境变量；生产环境由进程管理器或容器注入环境变量。运行测试可使用 `make test-go`。
+
 后续部署阶段使用 `.env.docker.example` 作为模板，并在云服务器上注入真实配置。`docker-compose.yaml` 不属于当前 Mac 本地开发启动路径。
 
 MVP 不引入消息队列。聊天同步主链路由 Go 直接调用 Python gRPC；未来如果需要通知、统计或其他异步副作用，再单独评估 RabbitMQ、Redis Streams 或其他 MQ，并确保它不成为普通聊天请求的必要依赖。

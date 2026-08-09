@@ -11,6 +11,7 @@ import (
 
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/httpserver"
+	"ai-flowmind/services/go-api/internal/mysql"
 )
 
 func main() {
@@ -21,7 +22,17 @@ func main() {
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel(cfg.Log.Level)}))
-	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{})
+	db, err := mysql.Open(cfg.MySQL)
+	if err != nil {
+		logger.Error("open mysql failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Error("close mysql failed", "error", err)
+		}
+	}()
+	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{MySQL: db.Check})
 
 	serverErrors := make(chan error, 1)
 	go func() { serverErrors <- apiServer.Run() }()

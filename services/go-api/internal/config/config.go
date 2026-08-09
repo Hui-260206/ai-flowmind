@@ -23,6 +23,7 @@ type Config struct {
 	Environment string
 	Log         LogConfig
 	HTTP        HTTPConfig
+	MySQL       MySQLConfig
 }
 
 type LogConfig struct {
@@ -36,6 +37,19 @@ type HTTPConfig struct {
 	ReadTimeout       time.Duration
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
+}
+
+type MySQLConfig struct {
+	Host            string
+	Port            int
+	Database        string
+	User            string
+	Password        string
+	Timezone        string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
 }
 
 // Load reads the server configuration from the environment.
@@ -75,6 +89,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	mysql, err := loadMySQLConfig()
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		Environment: envOrDefault("GO_ENV", "local"),
@@ -87,7 +105,70 @@ func Load() (Config, error) {
 			WriteTimeout:      writeTimeout,
 			IdleTimeout:       idleTimeout,
 		},
+		MySQL: mysql,
 	}, nil
+}
+
+func loadMySQLConfig() (MySQLConfig, error) {
+	host := requiredEnv("MYSQL_HOST")
+	database := requiredEnv("MYSQL_DATABASE")
+	user := requiredEnv("MYSQL_USER")
+	password := requiredEnv("MYSQL_PASSWORD")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	if database == "" {
+		return MySQLConfig{}, fmt.Errorf("MYSQL_DATABASE must not be empty")
+	}
+	if user == "" {
+		return MySQLConfig{}, fmt.Errorf("MYSQL_USER must not be empty")
+	}
+	if password == "" {
+		return MySQLConfig{}, fmt.Errorf("MYSQL_PASSWORD must not be empty")
+	}
+	port, err := loadInt("MYSQL_PORT", 3306, 1, 65535)
+	if err != nil {
+		return MySQLConfig{}, err
+	}
+	maxOpen, err := loadInt("MYSQL_MAX_OPEN_CONNS", 10, 1, 1000)
+	if err != nil {
+		return MySQLConfig{}, err
+	}
+	maxIdle, err := loadInt("MYSQL_MAX_IDLE_CONNS", 5, 0, 1000)
+	if err != nil {
+		return MySQLConfig{}, err
+	}
+	if maxIdle > maxOpen {
+		return MySQLConfig{}, fmt.Errorf("MYSQL_MAX_IDLE_CONNS must not exceed MYSQL_MAX_OPEN_CONNS")
+	}
+	lifetime, err := loadDuration("MYSQL_CONN_MAX_LIFETIME", 30*time.Minute)
+	if err != nil {
+		return MySQLConfig{}, err
+	}
+	idleTime, err := loadDuration("MYSQL_CONN_MAX_IDLE_TIME", 10*time.Minute)
+	if err != nil {
+		return MySQLConfig{}, err
+	}
+	return MySQLConfig{
+		Host: host, Port: port,
+		Database: database, User: user, Password: password,
+		Timezone: envOrDefault("MYSQL_TIMEZONE", "Asia/Shanghai"), MaxOpenConns: maxOpen, MaxIdleConns: maxIdle,
+		ConnMaxLifetime: lifetime, ConnMaxIdleTime: idleTime,
+	}, nil
+}
+
+func requiredEnv(name string) string { return strings.TrimSpace(os.Getenv(name)) }
+
+func loadInt(name string, fallback, min, max int) (int, error) {
+	value, ok := os.LookupEnv(name)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || parsed < min || parsed > max {
+		return 0, fmt.Errorf("invalid %s %q: must be an integer from %d to %d", name, value, min, max)
+	}
+	return parsed, nil
 }
 
 func envOrDefault(name, fallback string) string {

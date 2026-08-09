@@ -144,6 +144,14 @@ cp services/.env.example services/.env
 chmod 600 services/.env
 ```
 
+启动 Go API 时，在项目根目录执行：
+
+```bash
+make -C services dev-go
+```
+
+该命令会显式加载 `services/.env`。Go 程序只读取进程环境变量，不自动搜索 `.env`。如果使用 IDE 运行 `cmd/api`，需要在 IDE 的 Run/Debug Configuration 中显式配置环境变量。
+
 本阶段本地关键变量应为：
 
 ```dotenv

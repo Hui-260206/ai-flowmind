@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"ai-flowmind/services/go-api/internal/config"
+	"ai-flowmind/services/go-api/internal/health"
 )
 
 func testServer() *Server {
@@ -34,7 +35,7 @@ func TestReadyzFailsWithSpecificUnconfiguredDependencies(t *testing.T) {
 	if res.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
 	}
-	var body readinessResponse
+	var body health.Response
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -62,7 +63,7 @@ func TestReadyzSucceedsWhenAllDependenciesAreHealthy(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
 	}
-	var body readinessResponse
+	var body health.Response
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -89,12 +90,12 @@ func TestReadyzReportsDependencyError(t *testing.T) {
 	if res.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
 	}
-	var body readinessResponse
+	var body health.Response
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if got := body.Checks["mysql"].Error; got != "connection refused" {
-		t.Fatalf("mysql error = %q, want connection refused", got)
+	if got := body.Checks["mysql"].Error; got != "dependency is unavailable" {
+		t.Fatalf("mysql error = %q, want dependency is unavailable", got)
 	}
 	if body.Checks["redis"].Status != "ok" || body.Checks["python_grpc"].Status != "ok" {
 		t.Fatalf("unexpected healthy checks: %#v", body.Checks)
