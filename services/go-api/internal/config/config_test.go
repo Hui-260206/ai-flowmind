@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestLoadDefaultsHTTPAddr(t *testing.T) {
 	t.Setenv("GO_HTTP_ADDR", "")
@@ -15,8 +18,27 @@ func TestLoadDefaultsHTTPAddr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.HTTPAddr != ":9090" {
-		t.Fatalf("HTTPAddr = %q, want %q", cfg.HTTPAddr, ":9090")
+	if cfg.HTTP.Addr != ":9090" {
+		t.Fatalf("HTTP.Addr = %q, want %q", cfg.HTTP.Addr, ":9090")
+	}
+	if cfg.HTTP.ShutdownTimeout != 10*time.Second {
+		t.Fatalf("HTTP.ShutdownTimeout = %s, want 10s", cfg.HTTP.ShutdownTimeout)
+	}
+}
+
+func TestLoadDurations(t *testing.T) {
+	t.Setenv("GO_HTTP_ADDR", ":8080")
+	t.Setenv("GO_SHUTDOWN_TIMEOUT", "2s")
+	t.Setenv("GO_READ_HEADER_TIMEOUT", "300ms")
+	t.Setenv("GO_READ_TIMEOUT", "4s")
+	t.Setenv("GO_WRITE_TIMEOUT", "5s")
+	t.Setenv("GO_IDLE_TIMEOUT", "1m")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.HTTP.ShutdownTimeout != 2*time.Second || cfg.HTTP.ReadHeaderTimeout != 300*time.Millisecond || cfg.HTTP.IdleTimeout != time.Minute {
+		t.Fatalf("unexpected durations: %+v", cfg)
 	}
 }
 
@@ -28,5 +50,12 @@ func TestLoadRejectsInvalidHTTPAddr(t *testing.T) {
 				t.Fatalf("Load() expected an error for %q", addr)
 			}
 		})
+	}
+}
+
+func TestLoadRejectsInvalidDuration(t *testing.T) {
+	t.Setenv("GO_SHUTDOWN_TIMEOUT", "0s")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected an error for a non-positive timeout")
 	}
 }
