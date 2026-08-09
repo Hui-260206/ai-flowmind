@@ -4,10 +4,8 @@ version = "0.1.0"
 description = "Internal gRPC AI service for FlowMind"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "fastapi>=0.115,<1.0",
   "grpcio>=1.68,<2.0",
   "pydantic-settings>=2.6,<3.0",
-  "uvicorn[standard]>=0.32,<1.0",
 ]
 
 [dependency-groups]
@@ -24,4 +22,3 @@ default-groups = ["dev"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-

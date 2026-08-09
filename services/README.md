@@ -17,7 +17,7 @@ services/
 │       ├── redis/             # Redis 客户端与探针
 │       └── grpcclient/        # Python AI gRPC 客户端与探针
 ├── ai-service/
-│   ├── app/                  # FastAPI/gRPC 进程入口和配置
+│   ├── app/                  # gRPC 进程入口和配置
 │   └── providers/            # Provider 抽象及 Fake/真实实现
 ├── proto/                    # Go/Python 共用的 protobuf 源文件
 ├── docker-compose.yaml       # 后续云端部署的 MySQL/Redis 基础设施编排

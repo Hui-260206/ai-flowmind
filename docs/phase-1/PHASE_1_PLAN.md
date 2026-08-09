@@ -302,26 +302,33 @@ services/
 
 说明：幂等、会话锁和限流属于阶段 6。
 
-### 阶段 1.8：初始化 Python 项目和 FastAPI 健康检查
+### 阶段 1.8：初始化 Python AI 服务运行时
 
-目标：让 Python AI 服务独立运行。
+目标：建立 Python AI 服务的项目结构、配置和进程基础，为后续
+gRPC Server 和 Fake Provider 实现提供运行环境。
 
 任务：
 
 - 创建 `pyproject.toml`；
+- 固定 Python、grpcio、protobuf 和测试工具版本；
 - 创建配置模块；
-- 创建 FastAPI 应用；
-- 创建 `/healthz`；
-- 配置日志；
-- 配置 request ID；
-- 创建服务启动入口。
+- 定义 gRPC 监听地址和端口等配置；
+- 定义模型 Provider 配置，但暂不接入真实模型；
+- 配置结构化日志；
+- 配置 request ID 的记录和透传约定；
+- 创建统一的 Python 服务启动入口；
+- 预留 gRPC Server 生命周期管理；
+- 明确 Python 服务不提供 FastAPI/HTTP 业务接口；
+- 明确 Python gRPC 只加入内部网络，不对公网开放。
 
 验收：
 
 - Python 服务可以独立启动；
-- Python `/healthz` 返回成功；
+- Python 项目可以安装依赖并通过静态检查；
 - 配置可以通过环境变量传入；
-- 你 review Python 项目结构。
+- 服务启动和退出日志语义明确；
+- 不引入 FastAPI、Uvicorn 或 HTTP 健康检查入口；
+- 你 review Python 项目结构和进程边界。
 
 ### 阶段 1.9：创建 Python gRPC 服务和 Fake Provider
 
