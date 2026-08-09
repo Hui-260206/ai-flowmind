@@ -14,7 +14,7 @@ Kuikly 移动端
 Go API 服务
     ├── MySQL：会话和聊天消息持久化
     ├── Redis：幂等、会话锁、限流
-    ├── Outbox/RabbitMQ：非关键异步事件（可作为 MVP Engineering 阶段）
+    └── Outbox/MQ：MVP 不启用，未来处理非关键异步事件
     └── gRPC
           ↓
 Python AI 服务
@@ -131,9 +131,9 @@ MVP 中只承担临时和高频状态：
 
 Redis 不承担永久聊天记录和大段上下文的唯一存储职责。
 
-### 4.6 RabbitMQ
+### 4.6 消息队列（MVP 不启用）
 
-RabbitMQ 不进入普通聊天的同步主链路。若在 MVP Engineering 阶段启用，只处理非关键异步任务，例如：
+MVP 不引入 RabbitMQ、Kafka、Redis Streams 或其他消息队列。普通聊天使用同步 HTTP + gRPC 主链路。未来若启用 MQ，只处理非关键异步任务，例如：
 
 - 聊天完成事件；
 - AI 用量统计；

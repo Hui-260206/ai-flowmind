@@ -13,7 +13,7 @@ Kuikly 移动端 (Android / iOS)
 Go API 服务  ── gRPC ──▶  Python AI 服务 ──▶ 大模型 Provider
    ├─ MySQL   (会话 / 消息，事实来源)
    ├─ Redis   (幂等 / 会话锁 / 限流)
-   └─ RabbitMQ (可选：Outbox 异步事件)
+   └─ Outbox/MQ（MVP 不启用，后续可选）
 ```
 
 核心特性（MVP）：
@@ -38,8 +38,10 @@ ai-flowmind/
 │   ├── go-api/             # Go REST/gRPC 服务，唯一对外 API
 │   └── ai-service/         # Python AI 服务（Provider 适配 + gRPC）
 ├── docs/
-│   ├── MVP_REQUIREMENTS.md # MVP 需求与系统边界
-│   └── MVP_EXECUTION_PLAN.md # 12 阶段执行计划
+│   ├── README.md           # 文档中心与分类索引
+│   ├── phase-0/            # 阶段 0：需求、契约、API
+│   ├── phase-1/            # 阶段 1：服务端基础工程
+│   └── roadmap/            # 跨阶段总体路线图
 ├── CLAUDE.md               # 详细架构与构建说明（AI 助手向）
 └── AGENT.md                # AI Agent 工作流与约束
 ```
@@ -55,15 +57,15 @@ ai-flowmind/
 | 后端 API | Go（计划） |
 | AI 服务 | Python + FastAPI（计划） |
 | 通信 | 对外 REST/JSON，内部 gRPC（protobuf） |
-| 存储 | MySQL（主）、Redis（临时状态）、RabbitMQ（异步，可选） |
+| 存储 | MySQL（主）、Redis（临时状态）；MVP 不启用消息队列 |
 
 ## 当前状态
 
 - ✅ **客户端**：`mobile/shared` 已有可运行的单聊天页（`SessionPage` + `SessionViewModel` + `ChatRepository`），含消息气泡、输入栏、消息列表等组件，Android/iOS 可构建。
 - ⬜ **服务端**：`services/go-api`、`services/ai-service` 为空，按计划从接口/边界设计开始搭建。
-- ⬜ **移动端联网**：将 Repository 从 Mock 切换为真实 Go API（见 `MVP_EXECUTION_PLAN.md` 阶段 9–11）。
+- ⬜ **移动端联网**：将 Repository 从 Mock 切换为真实 Go API（见 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](./docs/roadmap/MVP_EXECUTION_PLAN.md) 阶段 9–11）。
 
-详细路线图见 [`docs/MVP_EXECUTION_PLAN.md`](./docs/MVP_EXECUTION_PLAN.md)（12 阶段、4 个里程碑）。
+详细路线图见 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](./docs/roadmap/MVP_EXECUTION_PLAN.md)（12 阶段、4 个里程碑）。文档分类入口见 [`docs/README.md`](./docs/README.md)。
 
 ## 快速开始
 
@@ -97,12 +99,14 @@ npm run serve        # :8017 静态，:8083 whistle
 
 ### 服务端（规划中）
 
-按 `docs/MVP_EXECUTION_PLAN.md` 阶段 0–8 搭建：
+按 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](./docs/roadmap/MVP_EXECUTION_PLAN.md) 阶段 0–8 搭建：
 
 - `go-api`：Go module + `cmd/api/main.go` + MySQL/Redis/gRPC 客户端 + REST API；
 - `ai-service`：Python `pyproject.toml` + FastAPI 健康检查 + `grpc.aio` ChatService + Provider 抽象；
-- 通过 `docker-compose.yml` 拉起 MySQL / Redis（及可选 RabbitMQ）；
-- 接口契约见 `docs/MVP_REQUIREMENTS.md` 第 7 节（REST）与第 11 节（gRPC）。
+- 开发阶段在 Mac 本机运行 MySQL / Redis；后续部署阶段再通过 Docker Compose 运行；
+- 接口契约见 [`docs/phase-0/MVP_REQUIREMENTS.md`](./docs/phase-0/MVP_REQUIREMENTS.md) 第 7 节（REST）与第 11 节（gRPC）。
+
+开发环境、备份和后续 Docker 迁移说明见 [`docs/phase-1/PHASE_1_2_OPERATIONS.md`](./docs/phase-1/PHASE_1_2_OPERATIONS.md)。MVP 普通聊天采用同步 HTTP + gRPC，不引入 RabbitMQ 或其他消息队列。
 
 ## 对外 API 概览（MVP）
 

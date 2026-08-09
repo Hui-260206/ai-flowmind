@@ -24,8 +24,9 @@ ai-flowmind/
 │   ├── docker-compose.yml
 │   └── Makefile
 ├── docs/
-│   ├── MVP_REQUIREMENTS.md
-│   └── MVP_EXECUTION_PLAN.md
+│   ├── phase-0/              # 阶段 0：需求、契约、API
+│   ├── phase-1/              # 阶段 1：服务端基础工程
+│   └── roadmap/              # 本文件
 └── CLAUDE.md
 ```
 
@@ -40,7 +41,7 @@ ai-flowmind/
 | 4 | Python AI 服务 | gRPC ChatService 和真实 Provider 完成 |
 | 5 | Go–Python gRPC 联调 | Go 通过 gRPC 获取 AI 回复 |
 | 6 | Redis 能力 | 幂等、会话锁、限流完成 |
-| 7 | Outbox/RabbitMQ | 非关键异步事件完成，可选 |
+| 7 | Outbox/RabbitMQ | MVP 不实施，未来按需评估 |
 | 8 | 服务端测试和可观测性 | 服务端达到移动端接入条件 |
 | 9 | Kuikly 网络层接入 | Remote Repository 连接真实 API |
 | 10 | 移动端会话和历史 | 创建、切换、恢复会话 |
@@ -61,7 +62,7 @@ ai-flowmind/
 - [x] 创建 `agent.proto`；
 - [x] 创建 `vision.proto`；
 - [x] 创建 `tool.proto`；
-- [x] 创建 `docs/api/openapi.yaml`；
+- [x] 创建 `docs/phase-0/api/openapi.yaml`；
 - [x] 确定 `owner_key`、`client_id` 和未来 `user_id` 的关系；
 - [x] 确定消息角色：`system`、`user`、`assistant`、`tool`；
 - [x] 确定消息状态：`pending`、`completed`、`failed`；
@@ -111,8 +112,8 @@ ai-flowmind/
 
 ### 基础设施任务
 
-- [ ] 创建 MySQL Docker Compose 服务；
-- [ ] 创建 Redis Docker Compose 服务；
+- [ ] 后续部署阶段创建 MySQL Docker Compose 服务；
+- [ ] 后续部署阶段创建 Redis Docker Compose 服务；
 - [ ] 创建 Go API Dockerfile；
 - [ ] 创建 Python AI Dockerfile；
 - [ ] 提供本地环境变量示例；
@@ -312,7 +313,7 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 - 超过限流返回 429；
 - Redis 数据丢失不会导致 MySQL 聊天记录丢失。
 
-## 11. 阶段 7：Outbox 和 RabbitMQ（可选）
+## 11. 阶段 7：Outbox 和 RabbitMQ（MVP 不实施，未来按需评估）
 
 ### 目标
 

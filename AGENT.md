@@ -31,9 +31,9 @@
 `flow-mind` 是一个面向移动端的 AI 对话应用，分两部分：
 
 - **客户端** `mobile/`：基于 **Kuikly**（腾讯 Kotlin Multiplatform 框架）。UI 与业务逻辑全部写在 `mobile/shared`（`src/commonMain`）里，用 Kotlin / Kuikly Compose 一次编写，在 **Android 与 iOS** 原生渲染。**HarmonyOS（OHOS）脚手架保留但不维护、不在构建范围内。**
-- **服务端** `services/`：按 MVP 设计为 **Go API 服务 + Python AI 服务**，内部通过 gRPC 通信，外部对移动端暴露唯一 REST API。依赖 MySQL（事实来源）、Redis（幂等/锁/限流）、RabbitMQ（可选异步事件）。当前 `services/go-api`、`services/ai-service` 均为空目录，待搭建。
+- **服务端** `services/`：按 MVP 设计为 **Go API 服务 + Python AI 服务**，内部通过 gRPC 通信，外部对移动端暴露唯一 REST API。依赖 MySQL（事实来源）和 Redis（幂等/锁/限流）；MVP 不引入消息队列。开发阶段 MySQL/Redis 运行在 Mac 本机，后续部署再迁移到 Docker。
 
-> 注意：`CLAUDE.md` 中"后端为 Python + FastAPI"是早期设想；当前 MVP 已演进为 Go + Python 双服务架构，以 `docs/` 下两份 MVP 文档为准。
+> 注意：`CLAUDE.md` 中"后端为 Python + FastAPI"是早期设想；当前 MVP 已演进为 Go + Python 双服务架构，以 [`docs/phase-0/MVP_REQUIREMENTS.md`](docs/phase-0/MVP_REQUIREMENTS.md) 和 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](docs/roadmap/MVP_EXECUTION_PLAN.md) 为准。
 
 Kotlin 包名：`com.heli.flowmind`。Kuikly 运行时版本 `2.7.0-2.1.21`（定义在 `mobile/buildSrc/.../KotlinBuildVar.kt` 的 `Version`/`BuildPlugin`，改版本只改这里）。
 
@@ -77,3 +77,8 @@ cd mobile && npm run serve        # :8017 静态服务，:8083 whistle
 - `*.js`/`*.so` 及 `static/` 被 gitignore，构建产物不入库。
 - OHOS 脚手架（`settings.ohos.gradle.kts` 等）保留但不维护，无需运行。
 - 禁止提交真实密码、API Key 等密钥。
+
+补充说明（非常重要）：
+我做这个项目是为了学习企业级的AI全栈开发。因此，每个需求（或者阶段任务）拆分成多个足够小的阶段。
+每个小阶段，都需要停下来，都要告诉我为什么这样实现，我也需要review代码。
+确保新手的我能绝对和完全掌控这个项目。

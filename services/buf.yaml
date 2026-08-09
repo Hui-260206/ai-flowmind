@@ -1,0 +1,11 @@
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # Phase 0 keeps the files under proto/ai/v1 while the package remains
+    # flowmind.ai.v1 for the existing Go/Python contract. Directory migration
+    # is intentionally deferred to a dedicated protobuf maintenance change.
+    - PACKAGE_DIRECTORY_MATCH

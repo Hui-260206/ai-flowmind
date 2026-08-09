@@ -1,2 +1,14 @@
 .claude
 .mcp.json
+
+# Local service configuration and generated dependency/build artifacts.
+services/.env
+services/.env.*
+!services/.env.example
+!services/.env.docker.example
+services/**/.venv/
+services/**/__pycache__/
+services/**/.pytest_cache/
+services/**/generated/
+services/**/gen/
+services/backups/
