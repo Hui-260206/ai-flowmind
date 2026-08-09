@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flowmind.ai.v1;
+
+import "ai/v1/common.proto";
+
+option go_package = "github.com/flowmind/ai-flowmind/services/proto/ai/v1;aiv1";
+
+service AgentService {
+  rpc Run(AgentServiceRunRequest) returns (AgentServiceRunResponse);
+}
+
+message AgentServiceRunRequest { RequestContext context = 1; repeated ChatMessage messages = 2; }
+message AgentServiceRunResponse { ChatMessage message = 1; }

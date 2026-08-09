@@ -55,19 +55,19 @@ ai-flowmind/
 
 ### 任务
 
-- [ ] 创建 `services/` 基础目录；
-- [ ] 创建 `services/proto/ai/v1/common.proto`；
-- [ ] 创建 `chat.proto`；
-- [ ] 创建 `agent.proto`；
-- [ ] 创建 `vision.proto`；
-- [ ] 创建 `tool.proto`；
-- [ ] 创建 `docs/api/openapi.yaml`；
-- [ ] 确定 `owner_key`、`client_id` 和未来 `user_id` 的关系；
-- [ ] 确定消息角色：`system`、`user`、`assistant`、`tool`；
-- [ ] 确定消息状态：`pending`、`completed`、`failed`；
-- [ ] 确定请求错误码；
-- [ ] 确定消息最大长度和上下文截断策略；
-- [ ] 确定模型 profile，而不是让移动端直接传 Provider 名称。
+- [x] 创建 `services/` 基础目录；
+- [x] 创建 `services/proto/ai/v1/common.proto`；
+- [x] 创建 `chat.proto`；
+- [x] 创建 `agent.proto`；
+- [x] 创建 `vision.proto`；
+- [x] 创建 `tool.proto`；
+- [x] 创建 `docs/api/openapi.yaml`；
+- [x] 确定 `owner_key`、`client_id` 和未来 `user_id` 的关系；
+- [x] 确定消息角色：`system`、`user`、`assistant`、`tool`；
+- [x] 确定消息状态：`pending`、`completed`、`failed`；
+- [x] 确定请求错误码；
+- [x] 确定消息最大长度和上下文截断策略；
+- [x] 确定模型 profile，而不是让移动端直接传 Provider 名称。
 
 ### 验收标准
 

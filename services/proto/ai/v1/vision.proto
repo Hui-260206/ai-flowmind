@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flowmind.ai.v1;
+
+import "ai/v1/common.proto";
+
+option go_package = "github.com/flowmind/ai-flowmind/services/proto/ai/v1;aiv1";
+
+service VisionService {
+  rpc Analyze(VisionServiceAnalyzeRequest) returns (VisionServiceAnalyzeResponse);
+}
+
+message VisionServiceAnalyzeRequest { RequestContext context = 1; ImagePart image = 2; string prompt = 3; }
+message VisionServiceAnalyzeResponse { repeated ContentPart content = 1; string model_name = 2; TokenUsage usage = 3; }

@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package flowmind.ai.v1;
+
+option go_package = "github.com/flowmind/ai-flowmind/services/proto/ai/v1;aiv1";
+
+message RequestContext {
+  string request_id = 1;
+  string trace_id = 2;
+  string conversation_id = 3;
+  string owner_key = 4;
+  string model_profile = 5;
+}
+
+enum MessageRole {
+  MESSAGE_ROLE_UNSPECIFIED = 0;
+  MESSAGE_ROLE_SYSTEM = 1;
+  MESSAGE_ROLE_USER = 2;
+  MESSAGE_ROLE_ASSISTANT = 3;
+  MESSAGE_ROLE_TOOL = 4;
+}
+
+enum MessageStatus {
+  MESSAGE_STATUS_UNSPECIFIED = 0;
+  MESSAGE_STATUS_PENDING = 1;
+  MESSAGE_STATUS_COMPLETED = 2;
+  MESSAGE_STATUS_FAILED = 3;
+}
+
+message TextPart {
+  string text = 1;
+}
+
+message ImagePart {
+  string object_key = 1;
+  string mime_type = 2;
+}
+
+message ContentPart {
+  oneof part {
+    TextPart text = 1;
+    ImagePart image = 2;
+  }
+}
+
+message ChatMessage {
+  string id = 1;
+  MessageRole role = 2;
+  repeated ContentPart content = 3;
+  MessageStatus status = 4;
+  string client_message_id = 5;
+}
+
+message TokenUsage {
+  int32 prompt_tokens = 1;
+  int32 completion_tokens = 2;
+  int32 total_tokens = 3;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+}

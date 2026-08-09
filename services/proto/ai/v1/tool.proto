@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flowmind.ai.v1;
+
+import "ai/v1/common.proto";
+
+option go_package = "github.com/flowmind/ai-flowmind/services/proto/ai/v1;aiv1";
+
+service ToolService {
+  rpc Execute(ToolServiceExecuteRequest) returns (ToolServiceExecuteResponse);
+}
+
+message ToolServiceExecuteRequest { RequestContext context = 1; string tool_name = 2; string arguments_json = 3; }
+message ToolServiceExecuteResponse { string result_json = 1; ErrorDetail error = 2; }
