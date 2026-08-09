@@ -24,6 +24,7 @@ type Config struct {
 	Log         LogConfig
 	HTTP        HTTPConfig
 	MySQL       MySQLConfig
+	Redis       RedisConfig
 }
 
 type LogConfig struct {
@@ -50,6 +51,12 @@ type MySQLConfig struct {
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
 	ConnMaxIdleTime time.Duration
+}
+
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
 }
 
 // Load reads the server configuration from the environment.
@@ -93,6 +100,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	redis, err := loadRedisConfig()
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		Environment: envOrDefault("GO_ENV", "local"),
@@ -106,6 +117,7 @@ func Load() (Config, error) {
 			IdleTimeout:       idleTimeout,
 		},
 		MySQL: mysql,
+		Redis: redis,
 	}, nil
 }
 
@@ -154,6 +166,22 @@ func loadMySQLConfig() (MySQLConfig, error) {
 		Database: database, User: user, Password: password,
 		Timezone: envOrDefault("MYSQL_TIMEZONE", "Asia/Shanghai"), MaxOpenConns: maxOpen, MaxIdleConns: maxIdle,
 		ConnMaxLifetime: lifetime, ConnMaxIdleTime: idleTime,
+	}, nil
+}
+
+func loadRedisConfig() (RedisConfig, error) {
+	addr := envOrDefault("REDIS_ADDR", "127.0.0.1:6379")
+	if addr == "" {
+		return RedisConfig{}, fmt.Errorf("REDIS_ADDR must not be empty")
+	}
+	db, err := loadInt("REDIS_DB", 0, 0, 65535)
+	if err != nil {
+		return RedisConfig{}, err
+	}
+	return RedisConfig{
+		Addr:     addr,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       db,
 	}, nil
 }
 

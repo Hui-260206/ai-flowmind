@@ -51,6 +51,31 @@ func TestLoadDurations(t *testing.T) {
 	}
 }
 
+func TestLoadRedisConfig(t *testing.T) {
+	setMySQLTestEnv(t)
+	t.Setenv("GO_HTTP_ADDR", ":8080")
+	t.Setenv("REDIS_ADDR", "redis.example.test:6380")
+	t.Setenv("REDIS_PASSWORD", "redis-test-password")
+	t.Setenv("REDIS_DB", "3")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Redis.Addr != "redis.example.test:6380" || cfg.Redis.Password != "redis-test-password" || cfg.Redis.DB != 3 {
+		t.Fatalf("unexpected Redis config: %+v", cfg.Redis)
+	}
+}
+
+func TestLoadRejectsInvalidRedisDB(t *testing.T) {
+	setMySQLTestEnv(t)
+	t.Setenv("GO_HTTP_ADDR", ":8080")
+	t.Setenv("REDIS_DB", "-1")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected an error for a negative Redis database number")
+	}
+}
+
 func TestLoadRejectsInvalidHTTPAddr(t *testing.T) {
 	for _, addr := range []string{"8080", ":0", ":65536", ":http", ""} {
 		t.Run(addr, func(t *testing.T) {

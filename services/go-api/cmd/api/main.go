@@ -12,6 +12,7 @@ import (
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/httpserver"
 	"ai-flowmind/services/go-api/internal/mysql"
+	redisclient "ai-flowmind/services/go-api/internal/redis"
 )
 
 func main() {
@@ -32,7 +33,20 @@ func main() {
 			logger.Error("close mysql failed", "error", err)
 		}
 	}()
-	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{MySQL: db.Check})
+	cache, err := redisclient.Open(cfg.Redis)
+	if err != nil {
+		logger.Error("open redis failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := cache.Close(); err != nil {
+			logger.Error("close redis failed", "error", err)
+		}
+	}()
+	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{
+		MySQL: db.Check,
+		Redis: cache.Check,
+	})
 
 	serverErrors := make(chan error, 1)
 	go func() { serverErrors <- apiServer.Run() }()
