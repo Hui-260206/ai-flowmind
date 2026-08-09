@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   `mobile/shared` 模块中用 Kotlin / Kuikly Compose 编写一次，在 **Android 与 iOS** 上原生渲染。
   **HarmonyOS（OHOS）暂不实现**——仓库里虽保留了 `ohosApp/` 及相关 `.ohos.gradle.kts`、`runOhosApp.sh` 等脚手架，
   但当前不维护、不在构建范围内，改动客户端时无需顾及。
-- **后端**（`backend/`）：采用 **Python + FastAPI**（目前为空目录，待搭建）。
+- **后端**（`serviecs/`）：采用 **Python + FastAPI**（目前为空目录，待搭建）。
 
 Kotlin 包名：`com.heli.flowmind`。Kuikly 运行时版本为 `2.7.0-2.1.21`，定义在
 `mobile/buildSrc/src/main/java/KotlinBuildVar.kt`（`Version` / `BuildPlugin` 对象）——如需改版本只改这里，

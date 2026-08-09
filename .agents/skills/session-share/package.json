@@ -1,0 +1,26 @@
+{
+  "name": "session-share",
+  "version": "1.1.0",
+  "description": "将当前 Cursor/CodeBuddy/Claude Code/WorkBuddy/Box AI 的会话（session）导出并分享到 ChatSpark 平台",
+  "keywords": [
+    "skill",
+    "session",
+    "share",
+    "chatspark",
+    "codebuddy",
+    "cursor",
+    "claude-code",
+    "workbuddy",
+    "boxai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "read-chat-history": "python3 scripts/read_chat_history.py",
+    "upload": "python3 scripts/upload_session_rpc.py"
+  },
+  "engines": {
+    "python": ">=3.8"
+  }
+}

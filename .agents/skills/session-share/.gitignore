@@ -1,0 +1,15 @@
+node_modules/
+package-lock.json
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+
+# macOS / 编辑器
+.DS_Store
+.idea/
+.vscode/
+
+# 导出产物（运行 skill 时生成的临时 Markdown）
+chat-export-*.md
