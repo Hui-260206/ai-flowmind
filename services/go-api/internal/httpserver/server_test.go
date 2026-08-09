@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +23,81 @@ func TestHealthz(t *testing.T) {
 
 	if res.Code != http.StatusOK || res.Body.String() != "ok\n" {
 		t.Fatalf("response = %d %q, want 200 %q", res.Code, res.Body.String(), "ok\n")
+	}
+}
+
+func TestReadyzFailsWithSpecificUnconfiguredDependencies(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	res := httptest.NewRecorder()
+	testServer().Handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+	var body readinessResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "not_ready" {
+		t.Fatalf("status = %q, want not_ready", body.Status)
+	}
+	for _, name := range []string{"mysql", "redis", "python_grpc"} {
+		check, ok := body.Checks[name]
+		if !ok || check.Status != "failed" || check.Error == "" {
+			t.Fatalf("check %q = %#v, want a detailed failure", name, check)
+		}
+	}
+}
+
+func TestReadyzSucceedsWhenAllDependenciesAreHealthy(t *testing.T) {
+	server := New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{
+		MySQL:      func(context.Context) error { return nil },
+		Redis:      func(context.Context) error { return nil },
+		PythonGRPC: func(context.Context) error { return nil },
+	})
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	res := httptest.NewRecorder()
+	server.Handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	var body readinessResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "ready" {
+		t.Fatalf("status = %q, want ready", body.Status)
+	}
+	for name, check := range body.Checks {
+		if check.Status != "ok" || check.Error != "" {
+			t.Fatalf("check %q = %#v, want ok", name, check)
+		}
+	}
+}
+
+func TestReadyzReportsDependencyError(t *testing.T) {
+	server := New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{
+		MySQL:      func(context.Context) error { return errors.New("connection refused") },
+		Redis:      func(context.Context) error { return nil },
+		PythonGRPC: func(context.Context) error { return nil },
+	})
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	res := httptest.NewRecorder()
+	server.Handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+	var body readinessResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got := body.Checks["mysql"].Error; got != "connection refused" {
+		t.Fatalf("mysql error = %q, want connection refused", got)
+	}
+	if body.Checks["redis"].Status != "ok" || body.Checks["python_grpc"].Status != "ok" {
+		t.Fatalf("unexpected healthy checks: %#v", body.Checks)
 	}
 }
 
