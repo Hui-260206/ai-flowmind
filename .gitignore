@@ -1,5 +1,6 @@
 .claude
 .mcp.json
+.DS_Store
 
 # Local service configuration and generated dependency/build artifacts.
 services/.env
