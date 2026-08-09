@@ -103,7 +103,7 @@ AI_GRPC_ADDR=ai-service:50051
 任务：
 
 - 确认 Go、Python、MySQL、Redis 版本；
-- 确认 Go 使用标准库 `net/http` 启动 HTTP 服务；
+- 确认 Go 使用 Gin 构建 HTTP 路由和中间件，底层使用标准库 `net/http.Server` 启动服务；
 - 确认 MySQL 和 Redis 客户端库；
 - 确认 Python 依赖管理方式；
 - 确认 protobuf 代码生成工具链；

@@ -1,17 +1,19 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
 
-// New creates the minimal HTTP server for the Go API.
+	"github.com/gin-gonic/gin"
+)
+
+// New creates the minimal Gin-based HTTP server for the Go API.
 func New() *http.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthz)
+	router := gin.New()
+	router.GET("/healthz", healthz)
 
-	return &http.Server{Handler: mux}
+	return &http.Server{Handler: router}
 }
 
-func healthz(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("okhhhh\n"))
+func healthz(c *gin.Context) {
+	c.String(http.StatusOK, "ok\n")
 }

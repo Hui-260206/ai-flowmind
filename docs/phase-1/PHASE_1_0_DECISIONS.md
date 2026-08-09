@@ -6,8 +6,8 @@
 
 | 领域 | 决策 | 约束 |
 |---|---|---|
-| Go API | Go 1.24.x；标准库 `net/http` | Go API 是唯一对移动端开放的业务 HTTP 服务 |
-| Go HTTP | `net/http.Server` | 后续阶段统一注册 `/healthz`、`/readyz` 和 REST 路由 |
+| Go API | Go 1.24.x；Gin | Go API 是唯一对移动端开放的业务 HTTP 服务；Gin 基于标准库 `net/http` |
+| Go HTTP | Gin Router + `net/http.Server` | 后续阶段统一通过 Gin 注册 `/healthz`、`/readyz` 和 REST 路由 |
 | MySQL | 开发机当前为 Homebrew `mysql@8.0`，客户端 8.0.46 | `utf8mb4`；Go 使用 `database/sql` + `github.com/go-sql-driver/mysql`；部署基线仍需另行决定是否升级 8.4 LTS |
 | Redis | 开发机当前为 Redis 8.10.0 | Go 使用 `github.com/redis/go-redis/v9`；只保存临时状态；部署镜像版本需与本地兼容性验证后固定 |
 | Python AI | Python 3.12.x | 使用 `uv` 管理 `pyproject.toml` 与锁文件 |
@@ -84,7 +84,7 @@ MVP 不引入 RabbitMQ、Kafka、Redis Streams 或其他消息队列。普通聊
 ## 7. 1.0 验收清单
 
 - [x] Go、Python、MySQL、Redis、protobuf 工具链版本方案已固定。
-- [x] Go 使用标准库 `net/http` 的决策已固定。
+- [x] Go 使用 Gin 的决策已固定；底层 HTTP Server 使用标准库 `net/http`。
 - [x] Go/MySQL、Go/Redis 客户端库已固定。
 - [x] 本地、云端开发、正式环境的连接方式和配置边界已固定。
 - [x] 端口、网络暴露原则和健康检查语义已固定。
