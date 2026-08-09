@@ -93,7 +93,7 @@ mysql --host=127.0.0.1 --port=3306 \\
 
 ## 5. 配置 Redis 本地认证和持久化
 
-当前 Redis 实例的实际状态已确认：`protected-mode=yes`、绑定 `127.0.0.1`/`::1`，但 `appendonly=no`，且尚未验证到密码认证。阶段 1.2 的目标仍然是开启密码和 AOF；在完成下面配置前，不应把 Redis 标记为阶段 1.2 完成。
+当前 Redis 实例已按本节配置为：`protected-mode=yes`、绑定 `127.0.0.1`/`::1`、启用密码认证和 AOF。配置文件位于开发机用户目录，不进入仓库。
 
 为避免开发环境无密码运行 Redis，创建本机用户配置目录和配置文件：
 
@@ -167,10 +167,11 @@ mkdir -p "$HOME/.local/share/flowmind/backups/mysql"
 chmod 700 "$HOME/.local/share/flowmind/backups/mysql"
 ```
 
-MySQL 逻辑备份：
+MySQL 逻辑备份（MySQL 8 使用非 root 应用账号时增加 `--no-tablespaces`，避免要求 `PROCESS` 权限）：
 
 ```sh
 mysqldump --single-transaction --routines --triggers \\
+  --no-tablespaces \\
   --host=127.0.0.1 --port=3306 \\
   --user=flowmind_app --password flowmind_dev \\
   > "$HOME/.local/share/flowmind/backups/mysql/flowmind_dev_$(date +%Y%m%d_%H%M%S).sql"
@@ -213,10 +214,10 @@ RabbitMQ、Kafka、Redis Streams 都不加入当前开发环境。未来如果�
 
 - [x] 开发环境改为 Mac 本机 MySQL/Redis，不依赖 Docker。
 - [x] 本地 MySQL 使用独立数据库和非 root 应用账号。
-- [ ] MySQL 实际服务端版本、utf8mb4 和 Asia/Shanghai 时区已通过应用账号验证。
-- [ ] Redis 使用回环监听、密码认证和 AOF/RDB 持久化；当前仅回环监听和 protected-mode 已确认。
+- [x] MySQL 实际服务端版本、utf8mb4 和 Asia/Shanghai 时区已通过应用账号验证。
+- [x] Redis 使用回环监听、密码认证和 AOF/RDB 持久化。
 - [x] 本地备份和恢复方式已明确。
 - [x] 后续云端 Docker 迁移边界已明确。
 - [x] MVP 不引入消息队列的同步方案已明确。
 - [x] 本机 MySQL/Redis 已安装并启动，版本和监听端口已记录。
-- [ ] 在本机完成账号、认证、持久化、连接和恢复演练。
+- [x] 在本机完成账号、认证、持久化、连接和恢复演练。
