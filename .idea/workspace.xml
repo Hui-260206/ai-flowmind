@@ -5,15 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09784499-48ac-4fee-ae42-3079e814964f" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/.env.docker.example" beforeDir="false" afterPath="$PROJECT_DIR$/services/.env.docker.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/services/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/services/Makefile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/services/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/ai-service/app/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/services/ai-service/app/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/ai-service/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/services/ai-service/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/buf.gen.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/services/buf.gen.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/go-api/cmd/api/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/services/go-api/cmd/api/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/go-api/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/services/go-api/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/go-api/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/services/go-api/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/go-api/internal/config/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/services/go-api/internal/config/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/go-api/internal/config/config_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/services/go-api/internal/config/config_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/proto/ai/v1/agent.proto" beforeDir="false" afterPath="$PROJECT_DIR$/services/proto/ai/v1/agent.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/proto/ai/v1/chat.proto" beforeDir="false" afterPath="$PROJECT_DIR$/services/proto/ai/v1/chat.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/proto/ai/v1/common.proto" beforeDir="false" afterPath="$PROJECT_DIR$/services/proto/ai/v1/common.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/proto/ai/v1/tool.proto" beforeDir="false" afterPath="$PROJECT_DIR$/services/proto/ai/v1/tool.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/proto/ai/v1/vision.proto" beforeDir="false" afterPath="$PROJECT_DIR$/services/proto/ai/v1/vision.proto" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
