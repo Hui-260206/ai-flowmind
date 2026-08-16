@@ -13,3 +13,6 @@ services/**/.pytest_cache/
 services/**/generated/
 services/**/gen/
 services/backups/
+
+.dsh-tools
+.npm-cache
