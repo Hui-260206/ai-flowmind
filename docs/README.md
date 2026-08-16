@@ -18,6 +18,10 @@
 - [阶段 1.9 Python gRPC 服务](./phase-1/PHASE_1_9_PYTHON_GRPC.md)：ChatProvider 抽象、FakeProvider 与 ChatService 的最小联通。
 - [阶段 1.10 Go–Python gRPC 联通](./phase-1/PHASE_1_10_GOPYTHON_GRPC.md)：Go 生成 protobuf 代码、gRPC Client 与 `/readyz` 集成。
 
+## 阶段 2：数据库和领域模型
+
+- [阶段 2 计划](./phase-2/PHASE_2_PLAN.md)：MySQL migration、领域模型与 Repository 的实现计划、DDL 草稿与关键设计决策。
+
 ## 跨阶段路线图
 
 - [MVP 执行计划](./roadmap/MVP_EXECUTION_PLAN.md)：从阶段 0 到阶段 12 的总体路线图。

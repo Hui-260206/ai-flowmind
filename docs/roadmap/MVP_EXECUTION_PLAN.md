@@ -18,9 +18,9 @@ ai-flowmind/
 ├── mobile/
 ├── services/
 │   ├── go-api/
+│   │   └── internal/migrate/migrations/   # SQL 迁移（阶段 2 起；embed 进 Go 二进制）
 │   ├── ai-service/
 │   ├── proto/
-│   ├── migrations/
 │   ├── docker-compose.yml
 │   └── Makefile
 ├── docs/
@@ -139,19 +139,19 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 
 ### 任务
 
-- [ ] 创建 `chat_sessions` migration；
-- [ ] 创建 `chat_messages` migration；
-- [ ] 创建 `outbox_events` migration；
-- [ ] 预留 `ai_runs` 模型或 migration；
-- [ ] 增加 `session_id + seq` 索引；
-- [ ] 增加 `owner_key + updated_at` 索引；
-- [ ] 增加 `session_id + created_at` 索引；
-- [ ] 增加幂等键唯一约束；
-- [ ] 实现 Session Repository；
-- [ ] 实现 Message Repository；
-- [ ] 实现 Outbox Repository；
-- [ ] 实现会话归属校验；
-- [ ] 实现稳定的消息顺序。
+- [x] 创建 `chat_sessions` migration；
+- [x] 创建 `chat_messages` migration；
+- [x] 创建 `outbox_events` migration；
+- [x] 预留 `ai_runs` 模型或 migration（决策：先不建表，见 `docs/phase-2/PHASE_2_PLAN.md`）；
+- [x] 增加 `session_id + seq` 索引；
+- [x] 增加 `owner_key + updated_at` 索引；
+- [x] 增加 `session_id + created_at` 索引；
+- [x] 增加幂等键唯一约束；
+- [x] 实现 Session Repository；
+- [x] 实现 Message Repository；
+- [x] 实现 Outbox Repository；
+- [x] 实现会话归属校验；
+- [x] 实现稳定的消息顺序。
 
 ### 关键设计
 

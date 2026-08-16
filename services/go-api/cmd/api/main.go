@@ -12,6 +12,7 @@ import (
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/grpcclient"
 	"ai-flowmind/services/go-api/internal/httpserver"
+	"ai-flowmind/services/go-api/internal/migrate"
 	"ai-flowmind/services/go-api/internal/mysql"
 	redisclient "ai-flowmind/services/go-api/internal/redis"
 )
@@ -34,6 +35,10 @@ func main() {
 			logger.Error("close mysql failed", "error", err)
 		}
 	}()
+	if err := migrate.Up(db.SQLDB()); err != nil {
+		logger.Error("run migrations failed", "error", err)
+		os.Exit(1)
+	}
 	cache, err := redisclient.Open(cfg.Redis)
 	if err != nil {
 		logger.Error("open redis failed", "error", err)

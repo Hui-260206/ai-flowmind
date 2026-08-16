@@ -8,7 +8,7 @@
 |---|---|---|
 | Go API | Go 1.25；Gin | Go API 是唯一对移动端开放的业务 HTTP 服务；Gin 基于标准库 `net/http`；`go.mod` 固定 `go 1.25.0`，本机工具链 go1.26.5 |
 | Go HTTP | Gin Router + `net/http.Server` | 后续阶段统一通过 Gin 注册 `/healthz`、`/readyz` 和 REST 路由 |
-| MySQL | 开发机当前为 Homebrew `mysql@8.0`，客户端 8.0.46 | `utf8mb4`；Go 使用 `database/sql` + `github.com/go-sql-driver/mysql`；部署基线仍需另行决定是否升级 8.4 LTS |
+| MySQL | 开发机当前为 Homebrew `mysql@8.0`，客户端 8.0.46 | `utf8mb4`；底层连接用 `database/sql` + `github.com/go-sql-driver/mysql`，数据访问/Repository 层用 GORM（`gorm.io/gorm` + `gorm.io/driver/mysql`，阶段 2 起）；部署基线仍需另行决定是否升级 8.4 LTS |
 | Redis | 开发机当前为 Redis 8.10.0 | Go 使用 `github.com/redis/go-redis/v9`；只保存临时状态；部署镜像版本需与本地兼容性验证后固定 |
 | Python AI | Python 3.12.x | 使用 `uv` 管理 `pyproject.toml` 与锁文件 |
 | Python 服务边界 | 仅 gRPC（无 HTTP） | 不提供 FastAPI / Uvicorn / HTTP 健康检查入口；由阶段 1.8 修订，取代原 FastAPI + Uvicorn 方案 |

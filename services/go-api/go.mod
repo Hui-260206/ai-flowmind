@@ -6,6 +6,7 @@ require github.com/gin-gonic/gin v1.11.0
 
 require (
 	github.com/go-sql-driver/mysql v1.7.0
+	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/redis/go-redis/v9 v9.7.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11

@@ -43,9 +43,9 @@ func Open(cfg config.MySQLConfig) (*Client, error) {
 	return &Client{db: db, sqlDB: sqlDB}, nil
 }
 func (c *Client) DB() *gorm.DB                    { return c.db }
+func (c *Client) SQLDB() *sql.DB                  { return c.sqlDB }
 func (c *Client) Check(ctx context.Context) error { return c.sqlDB.PingContext(ctx) }
 func (c *Client) Close() error                    { return c.sqlDB.Close() }
-
 
 func buildDSN(cfg config.MySQLConfig) (string, error) {
 	loc, err := time.LoadLocation(cfg.Timezone)

@@ -15,6 +15,9 @@ services/
 │       ├── middleware/        # request_id、日志、错误响应等横切能力
 │       ├── mysql/             # MySQL 连接池与探针
 │       ├── redis/             # Redis 客户端与探针
+│       ├── model/             # 领域模型、枚举常量与 owner_key 派生
+│       ├── repository/        # Session/Message/Outbox 数据访问接口与 GORM 实现
+│       ├── migrate/           # 内嵌 SQL 迁移 + 启动时按版本执行
 │       └── grpcclient/        # Python AI gRPC 客户端与探针
 ├── ai-service/
 │   ├── app/                  # gRPC 进程入口和配置
