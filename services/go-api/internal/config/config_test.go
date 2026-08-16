@@ -93,3 +93,31 @@ func TestLoadRejectsInvalidDuration(t *testing.T) {
 		t.Fatal("Load() expected an error for a non-positive timeout")
 	}
 }
+
+func TestLoadGRPCConfig(t *testing.T) {
+	setMySQLTestEnv(t)
+	t.Setenv("GO_HTTP_ADDR", ":8080")
+	t.Setenv("AI_GRPC_ADDR", "ai-service:50051")
+	t.Setenv("AI_GRPC_TIMEOUT", "30s")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.GRPC.Addr != "ai-service:50051" || cfg.GRPC.Timeout != 30*time.Second {
+		t.Fatalf("unexpected gRPC config: %+v", cfg.GRPC)
+	}
+}
+
+func TestLoadGRPCDefaults(t *testing.T) {
+	setMySQLTestEnv(t)
+	t.Setenv("GO_HTTP_ADDR", ":8080")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.GRPC.Addr != "127.0.0.1:50051" || cfg.GRPC.Timeout != 15*time.Second {
+		t.Fatalf("unexpected gRPC defaults: %+v", cfg.GRPC)
+	}
+}

@@ -16,6 +16,7 @@ const (
 	defaultReadTimeout       = 15 * time.Second
 	defaultWriteTimeout      = 15 * time.Second
 	defaultIdleTimeout       = 60 * time.Second
+	defaultGRPCTimeout       = 15 * time.Second
 )
 
 // Config contains configuration shared by the API and its dependencies.
@@ -25,6 +26,7 @@ type Config struct {
 	HTTP        HTTPConfig
 	MySQL       MySQLConfig
 	Redis       RedisConfig
+	GRPC        GRPCConfig
 }
 
 type LogConfig struct {
@@ -57,6 +59,11 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+type GRPCConfig struct {
+	Addr    string
+	Timeout time.Duration
 }
 
 // Load reads the server configuration from the environment.
@@ -104,6 +111,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	grpcCfg, err := loadGRPCConfig()
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		Environment: envOrDefault("GO_ENV", "local"),
@@ -118,6 +129,7 @@ func Load() (Config, error) {
 		},
 		MySQL: mysql,
 		Redis: redis,
+		GRPC:  grpcCfg,
 	}, nil
 }
 
@@ -167,6 +179,18 @@ func loadMySQLConfig() (MySQLConfig, error) {
 		Timezone: envOrDefault("MYSQL_TIMEZONE", "Asia/Shanghai"), MaxOpenConns: maxOpen, MaxIdleConns: maxIdle,
 		ConnMaxLifetime: lifetime, ConnMaxIdleTime: idleTime,
 	}, nil
+}
+
+func loadGRPCConfig() (GRPCConfig, error) {
+	addr := envOrDefault("AI_GRPC_ADDR", "127.0.0.1:50051")
+	if addr == "" {
+		return GRPCConfig{}, fmt.Errorf("AI_GRPC_ADDR must not be empty")
+	}
+	timeout, err := loadDuration("AI_GRPC_TIMEOUT", defaultGRPCTimeout)
+	if err != nil {
+		return GRPCConfig{}, err
+	}
+	return GRPCConfig{Addr: addr, Timeout: timeout}, nil
 }
 
 func loadRedisConfig() (RedisConfig, error) {

@@ -4,7 +4,7 @@ package flowmind.ai.v1;
 
 import "ai/v1/common.proto";
 
-option go_package = "github.com/flowmind/ai-flowmind/services/proto/ai/v1;aiv1";
+option go_package = "ai-flowmind/services/go-api/internal/grpcclient/pb;aiv1";
 
 service AgentService {
   rpc Run(AgentServiceRunRequest) returns (AgentServiceRunResponse);

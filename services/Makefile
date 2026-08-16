@@ -5,8 +5,10 @@
 proto-check:
 	buf lint proto
 
+# Go stubs require protoc-gen-go and protoc-gen-go-grpc on PATH (installed via
+# `go install` into $HOME/go/bin).
 proto-generate:
-	buf generate proto
+	@PATH="$$HOME/go/bin:$$PATH" buf generate proto
 
 # Python stubs are generated with grpcio-tools (grpc_tools.protoc), which
 # bundles protoc + grpc_python_plugin; buf cannot reuse that plugin binary.

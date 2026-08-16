@@ -1,14 +1,14 @@
 version: v2
 plugins:
-  # Go plugins are finalized in stage 1.10 (requires protoc-gen-go and
-  # protoc-gen-go-grpc on PATH). Python stubs are generated separately with
-  # `make proto-generate-python` (grpc_tools.protoc) into ai-service/gen/python,
-  # because grpc_python_plugin is bundled with grpcio-tools and not exposed to buf.
+  # Go stubs are generated into the go-api module and imported as
+  # ai-flowmind/services/go-api/internal/grpcclient/pb (package aiv1). The
+  # module= option strips the module prefix so files land in
+  # go-api/internal/grpcclient/pb. Python stubs use `make proto-generate-python`.
   - local: protoc-gen-go
-    out: gen/go
+    out: go-api
     opt:
-      - paths=source_relative
+      - module=ai-flowmind/services/go-api
   - local: protoc-gen-go-grpc
-    out: gen/go
+    out: go-api
     opt:
-      - paths=source_relative
+      - module=ai-flowmind/services/go-api

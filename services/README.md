@@ -40,6 +40,8 @@ services/
 
 Python AI 服务只提供 gRPC，不引入 FastAPI/Uvicorn/HTTP 健康检查入口。阶段 1.9 已注册 `ChatService` 并接入 `FakeProvider`（固定回复），`providers/` 是 Provider 抽象与实现边界。本地启动使用 `make dev-ai`；首次运行前先 `make proto-generate-python` 生成 Python stub（输出到 `ai-service/gen/python`，已被 gitignore），再 `make lock-ai` 生成锁文件。静态检查与测试分别使用 `make lint-ai` 和 `make test-ai`。
 
+阶段 1.10 已完成 Go–Python gRPC 联通：Go 通过 `internal/grpcclient` 调用 Python `ChatService`（Fake Provider），并把 `python_grpc` 接入 `/readyz`。Go stub 由 `make proto-generate` 生成到 `go-api/internal/grpcclient/pb`（需 `$HOME/go/bin` 上的 protoc-gen-go / protoc-gen-go-grpc，通过 `go install` 安装）。proto 的 `go_package` 已统一为 `ai-flowmind/services/go-api/internal/grpcclient/pb`。
+
 后续部署阶段使用 `.env.docker.example` 作为模板，并在云服务器上注入真实配置。`docker-compose.yaml` 不属于当前 Mac 本地开发启动路径。
 
 MVP 不引入消息队列。聊天同步主链路由 Go 直接调用 Python gRPC；未来如果需要通知、统计或其他异步副作用，再单独评估 RabbitMQ、Redis Streams 或其他 MQ，并确保它不成为普通聊天请求的必要依赖。

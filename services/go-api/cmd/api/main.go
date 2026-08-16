@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"ai-flowmind/services/go-api/internal/config"
+	"ai-flowmind/services/go-api/internal/grpcclient"
 	"ai-flowmind/services/go-api/internal/httpserver"
 	"ai-flowmind/services/go-api/internal/mysql"
 	redisclient "ai-flowmind/services/go-api/internal/redis"
@@ -43,9 +44,20 @@ func main() {
 			logger.Error("close redis failed", "error", err)
 		}
 	}()
+	grpcClient, err := grpcclient.Open(cfg.GRPC)
+	if err != nil {
+		logger.Error("open grpc client failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := grpcClient.Close(); err != nil {
+			logger.Error("close grpc client failed", "error", err)
+		}
+	}()
 	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{
-		MySQL: db.Check,
-		Redis: cache.Check,
+		MySQL:      db.Check,
+		Redis:      cache.Check,
+		PythonGRPC: grpcClient.Check,
 	})
 
 	serverErrors := make(chan error, 1)

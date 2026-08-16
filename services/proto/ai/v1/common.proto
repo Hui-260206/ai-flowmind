@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package flowmind.ai.v1;
 
-option go_package = "github.com/flowmind/ai-flowmind/services/proto/ai/v1;aiv1";
+option go_package = "ai-flowmind/services/go-api/internal/grpcclient/pb;aiv1";
 
 message RequestContext {
   string request_id = 1;
