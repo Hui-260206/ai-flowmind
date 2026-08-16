@@ -79,52 +79,55 @@ ai-flowmind/
 
 ## 5. 阶段 1：服务端基础工程
 
+> ✅ 已完成（2026-08-16）。Go API 与 Python AI 服务可独立启动；Go 具备 `/healthz`、`/readyz`（mysql/redis/python_grpc 探针）、结构化日志、request_id、优雅退出与统一错误包络；Python 采用纯 gRPC 设计（不引入 FastAPI/HTTP，健康检查由 Go `/readyz` 的 gRPC 探针承担）；MySQL/Redis 已具备 Docker Compose 编排。Go/Python 容器镜像（Dockerfile）按计划推迟到后续部署阶段。
+
 ### 目标
 
 让 Go API 和 Python AI 服务可以独立启动，并具备本地基础设施连接能力。
 
 ### Go 任务
 
-- [ ] 初始化 Go Module；
-- [ ] 创建 `cmd/api/main.go`；
-- [ ] 创建配置加载模块；
-- [ ] 创建 HTTP Server；
-- [ ] 添加 `/healthz`；
-- [ ] 添加 `/readyz`；
-- [ ] 添加 graceful shutdown；
-- [ ] 添加结构化日志；
-- [ ] 添加 request_id 中间件；
-- [ ] 初始化 MySQL；
-- [ ] 初始化 Redis；
-- [ ] 初始化 gRPC Client；
-- [ ] 创建统一错误响应模型。
+- [x] 初始化 Go Module；
+- [x] 创建 `cmd/api/main.go`；
+- [x] 创建配置加载模块；
+- [x] 创建 HTTP Server（Gin）；
+- [x] 添加 `/healthz`；
+- [x] 添加 `/readyz`（mysql/redis/python_grpc 依赖探针）；
+- [x] 添加 graceful shutdown；
+- [x] 添加结构化日志（slog JSON）；
+- [x] 添加 request_id 中间件；
+- [x] 初始化 MySQL；
+- [x] 初始化 Redis；
+- [x] 初始化 gRPC Client；
+- [x] 创建统一错误响应模型（request_id + error.code/message 包络）。
 
 ### Python 任务
 
-- [ ] 初始化 `pyproject.toml`；
-- [ ] 创建 FastAPI 健康检查接口；
-- [ ] 创建 `grpc.aio` 服务启动入口；
-- [ ] 创建配置模块；
-- [ ] 创建日志和 request_id 处理；
-- [ ] 创建 `ChatProvider` 接口；
-- [ ] 创建 Fake Provider；
-- [ ] 生成 Python protobuf 代码。
+- [x] 初始化 `pyproject.toml`（uv 管理）；
+- [x] 创建服务启动入口（纯 gRPC 设计，不引入 FastAPI/HTTP；健康检查经 Go `/readyz` 的 python_grpc 探针承担，见 [services/README.md](../../services/README.md)）；
+- [x] 创建 `grpc.aio` 服务启动入口（含优雅停止）；
+- [x] 创建配置模块；
+- [x] 创建日志和 request_id 处理（contextvars 透传 + 日志过滤器）；
+- [x] 创建 `ChatProvider` 接口；
+- [x] 创建 Fake Provider；
+- [x] 生成 Python protobuf 代码（`make proto-generate-python`，产物不入库）。
 
 ### 基础设施任务
 
-- [ ] 后续部署阶段创建 MySQL Docker Compose 服务；
-- [ ] 后续部署阶段创建 Redis Docker Compose 服务；
-- [ ] 创建 Go API Dockerfile；
-- [ ] 创建 Python AI Dockerfile；
-- [ ] 提供本地环境变量示例；
-- [ ] 禁止提交真实密码和 API Key。
+- [x] 创建 MySQL Docker Compose 服务；
+- [x] 创建 Redis Docker Compose 服务；
+- [ ] 后续部署阶段创建 Go API Dockerfile；
+- [ ] 后续部署阶段创建 Python AI Dockerfile；
+- [x] 提供本地环境变量示例（`.env.example` / `.env.docker.example`）；
+- [x] 禁止提交真实密码和 API Key（`.env` 已被 gitignore，仅示例入库）。
 
 ### 验收标准
 
 ```text
 docker compose up
 Go /healthz 返回成功
-Python /healthz 返回成功
+Go /readyz 全部通过（mysql、redis、python_grpc 三个探针）
+Python gRPC 服务可启动，且能被 Go 调用
 Go 成功连接 MySQL、Redis 和 Python gRPC
 ```
 
