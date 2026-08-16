@@ -14,6 +14,8 @@
 - [阶段 1 总计划](./phase-1/PHASE_1_PLAN.md)：阶段 1.0–1.13 的拆分、任务和验收标准。
 - [阶段 1.0 技术边界](./phase-1/PHASE_1_0_DECISIONS.md)：技术版本、拓扑、端口、配置和健康检查语义。
 - [阶段 1.2 Mac 本地数据库环境](./phase-1/PHASE_1_2_OPERATIONS.md)：本机 MySQL/Redis 安装、配置、备份、恢复以及后续 Docker 迁移。
+- [阶段 1.8 Python 运行时](./phase-1/PHASE_1_8_PYTHON_RUNTIME.md)：AI 服务项目结构、配置、结构化日志与 gRPC 生命周期脚手架。
+- [阶段 1.9 Python gRPC 服务](./phase-1/PHASE_1_9_PYTHON_GRPC.md)：ChatProvider 抽象、FakeProvider 与 ChatService 的最小联通。
 
 ## 跨阶段路线图
 

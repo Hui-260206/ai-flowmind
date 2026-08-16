@@ -5,6 +5,7 @@ description = "Internal gRPC AI service for FlowMind"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "grpcio>=1.68,<2.0",
+  "protobuf>=5.29,<6.0",
   "pydantic-settings>=2.6,<3.0",
 ]
 
@@ -22,3 +23,13 @@ default-groups = ["dev"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+exclude = ["gen"]
+
+[tool.ruff.lint.per-file-ignores]
+# main.py 必须先写入 sys.path 再导入依赖 ai.v1 生成代码的模块。
+"app/main.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["gen/python", "."]
+asyncio_mode = "auto"

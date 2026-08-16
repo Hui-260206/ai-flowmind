@@ -1,7 +1,9 @@
 version: v2
 plugins:
-  # Concrete plugin versions and output paths are finalized with Go/Python
-  # service initialization in stages 1.3 and 1.4.
+  # Go plugins are finalized in stage 1.10 (requires protoc-gen-go and
+  # protoc-gen-go-grpc on PATH). Python stubs are generated separately with
+  # `make proto-generate-python` (grpc_tools.protoc) into ai-service/gen/python,
+  # because grpc_python_plugin is bundled with grpcio-tools and not exposed to buf.
   - local: protoc-gen-go
     out: gen/go
     opt:
@@ -10,6 +12,3 @@ plugins:
     out: gen/go
     opt:
       - paths=source_relative
-  - local: python
-    out: gen/python
-

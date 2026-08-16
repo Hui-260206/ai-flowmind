@@ -38,6 +38,8 @@ services/
 
 本地启动 Go API 时推荐使用 `make dev-go`，该命令会将私有的 `services/.env` 注入当前进程。Go 程序本身只读取进程环境变量，不负责解析或搜索 `.env`。使用 IDE 时，应在 Run/Debug Configuration 中显式配置环境变量；生产环境由进程管理器或容器注入环境变量。运行测试可使用 `make test-go`。
 
+Python AI 服务只提供 gRPC，不引入 FastAPI/Uvicorn/HTTP 健康检查入口。阶段 1.9 已注册 `ChatService` 并接入 `FakeProvider`（固定回复），`providers/` 是 Provider 抽象与实现边界。本地启动使用 `make dev-ai`；首次运行前先 `make proto-generate-python` 生成 Python stub（输出到 `ai-service/gen/python`，已被 gitignore），再 `make lock-ai` 生成锁文件。静态检查与测试分别使用 `make lint-ai` 和 `make test-ai`。
+
 后续部署阶段使用 `.env.docker.example` 作为模板，并在云服务器上注入真实配置。`docker-compose.yaml` 不属于当前 Mac 本地开发启动路径。
 
 MVP 不引入消息队列。聊天同步主链路由 Go 直接调用 Python gRPC；未来如果需要通知、统计或其他异步副作用，再单独评估 RabbitMQ、Redis Streams 或其他 MQ，并确保它不成为普通聊天请求的必要依赖。
