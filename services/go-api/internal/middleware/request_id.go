@@ -12,7 +12,7 @@ import (
 
 const requestIDKey = "request_id"
 
-// RequestID propagates a caller-provided request ID or creates a fresh one.
+// RequestID 透传调用方提供的 request ID，缺失时生成一个新的。
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := strings.TrimSpace(c.GetHeader("X-Request-ID"))
@@ -34,8 +34,7 @@ func GetRequestID(c *gin.Context) string {
 func newRequestID() string {
 	var bytes [16]byte
 	if _, err := rand.Read(bytes[:]); err != nil {
-		// crypto/rand failure is exceptionally rare; a non-empty ID still makes
-		// the request traceable in the same process.
+		// crypto/rand 失败极其罕见；即使失败，非空 ID 仍能让请求在本进程内可追踪。
 		return "request-unknown"
 	}
 	return hex.EncodeToString(bytes[:])
@@ -63,7 +62,7 @@ func validRequestID(value string) bool {
 	return true
 }
 
-// Errors converts unhandled Gin errors into the API's base error envelope.
+// Errors 把未处理的 Gin 错误转换成 API 的基础错误包络。
 func Errors() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()

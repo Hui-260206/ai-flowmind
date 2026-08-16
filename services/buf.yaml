@@ -5,7 +5,6 @@ lint:
   use:
     - STANDARD
   except:
-    # Phase 0 keeps the files under proto/ai/v1 while the package remains
-    # flowmind.ai.v1 for the existing Go/Python contract. Directory migration
-    # is intentionally deferred to a dedicated protobuf maintenance change.
+    # 阶段 0 将文件放在 proto/ai/v1 下，而包名仍是 flowmind.ai.v1，以匹配既有
+    # Go/Python 契约；目录迁移有意推迟到专门的 protobuf 维护变更处理。
     - PACKAGE_DIRECTORY_MATCH

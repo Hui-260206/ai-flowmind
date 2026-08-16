@@ -1,9 +1,8 @@
 version: v2
 plugins:
-  # Go stubs are generated into the go-api module and imported as
-  # ai-flowmind/services/go-api/internal/grpcclient/pb (package aiv1). The
-  # module= option strips the module prefix so files land in
-  # go-api/internal/grpcclient/pb. Python stubs use `make proto-generate-python`.
+  # Go stub 生成到 go-api 模块，并以 ai-flowmind/services/go-api/internal/grpcclient/pb
+  # （包名 aiv1）导入；module= 选项去掉模块前缀，使文件落到
+  # go-api/internal/grpcclient/pb。Python stub 使用 `make proto-generate-python`。
   - local: protoc-gen-go
     out: go-api
     opt:

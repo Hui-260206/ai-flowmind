@@ -15,8 +15,7 @@ func setMySQLTestEnv(t *testing.T) {
 func TestLoadDefaultsHTTPAddr(t *testing.T) {
 	setMySQLTestEnv(t)
 	t.Setenv("GO_HTTP_ADDR", "")
-	// An empty environment value is intentionally invalid rather than treated
-	// as an omitted value.
+	// 空环境变量值被有意视为非法，而不是当作「未设置」。
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() expected an error for an empty GO_HTTP_ADDR")
 	}

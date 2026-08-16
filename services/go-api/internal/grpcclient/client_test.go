@@ -54,7 +54,7 @@ func TestCheckFailsWhenServerDown(t *testing.T) {
 		t.Fatalf("listen: %v", err)
 	}
 	addr := lis.Addr().String()
-	_ = lis.Close() // nothing listens on this port now
+	_ = lis.Close() // 该端口现在没有任何服务在监听
 
 	client, err := Open(config.GRPCConfig{Addr: addr, Timeout: 500 * time.Millisecond})
 	if err != nil {

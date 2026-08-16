@@ -19,7 +19,7 @@ const (
 	defaultGRPCTimeout       = 15 * time.Second
 )
 
-// Config contains configuration shared by the API and its dependencies.
+// Config 保存 API 及其依赖共享的配置。
 type Config struct {
 	Environment string
 	Log         LogConfig
@@ -66,10 +66,10 @@ type GRPCConfig struct {
 	Timeout time.Duration
 }
 
-// Load reads the server configuration from the environment.
+// Load 从环境变量读取服务配置。
 //
-// GO_HTTP_ADDR is optional and defaults to :8080. An explicit empty value is
-// rejected so a typo in a local .env file cannot silently change the binding.
+// GO_HTTP_ADDR 可选，默认 :8080；显式传空值会被拒绝，避免本地 .env 里写错时
+// 悄悄改变监听地址。
 func Load() (Config, error) {
 	addr, ok := os.LookupEnv("GO_HTTP_ADDR")
 	if !ok {
@@ -248,8 +248,8 @@ func validateHTTPAddr(addr string) error {
 		return fmt.Errorf("must not contain whitespace")
 	}
 
-	// Accept the forms supported by net/http's ListenAndServe, while checking
-	// the port early to produce a useful configuration error at startup.
+	// 接受 net/http 的 ListenAndServe 支持的写法，同时提前校验端口，
+	// 以便在启动时给出有用的配置错误。
 	portText := addr
 	if strings.HasPrefix(addr, ":") {
 		portText = strings.TrimPrefix(addr, ":")

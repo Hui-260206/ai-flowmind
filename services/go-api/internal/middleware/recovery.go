@@ -6,8 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Recovery converts panics into the same public error envelope as other
-// internal failures, while retaining the request ID in the log.
+// Recovery 把 panic 转成与其他内部错误相同的对外错误包络，同时在日志里保留 request ID。
 func Recovery(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {

@@ -8,7 +8,7 @@ import (
 	redisgo "github.com/redis/go-redis/v9"
 )
 
-// Client owns the Redis connection pool used by the API.
+// Client 持有 API 使用的 Redis 连接池。
 type Client struct {
 	client *redisgo.Client
 }
