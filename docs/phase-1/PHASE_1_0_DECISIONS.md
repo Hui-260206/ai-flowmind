@@ -6,14 +6,14 @@
 
 | 领域 | 决策 | 约束 |
 |---|---|---|
-| Go API | Go 1.24.x；Gin | Go API 是唯一对移动端开放的业务 HTTP 服务；Gin 基于标准库 `net/http` |
+| Go API | Go 1.25；Gin | Go API 是唯一对移动端开放的业务 HTTP 服务；Gin 基于标准库 `net/http`；`go.mod` 固定 `go 1.25.0`，本机工具链 go1.26.5 |
 | Go HTTP | Gin Router + `net/http.Server` | 后续阶段统一通过 Gin 注册 `/healthz`、`/readyz` 和 REST 路由 |
 | MySQL | 开发机当前为 Homebrew `mysql@8.0`，客户端 8.0.46 | `utf8mb4`；Go 使用 `database/sql` + `github.com/go-sql-driver/mysql`；部署基线仍需另行决定是否升级 8.4 LTS |
 | Redis | 开发机当前为 Redis 8.10.0 | Go 使用 `github.com/redis/go-redis/v9`；只保存临时状态；部署镜像版本需与本地兼容性验证后固定 |
 | Python AI | Python 3.12.x | 使用 `uv` 管理 `pyproject.toml` 与锁文件 |
-| Python HTTP | FastAPI + Uvicorn | 仅提供 AI 服务自身健康检查/运维入口，不承载移动端业务 API |
+| Python 服务边界 | 仅 gRPC（无 HTTP） | 不提供 FastAPI / Uvicorn / HTTP 健康检查入口；由阶段 1.8 修订，取代原 FastAPI + Uvicorn 方案 |
 | Python RPC | `grpcio` / `grpcio-tools` | 使用 `grpc.aio`；服务监听 Compose 内部的 50051 |
-| protobuf | `protoc` 27.x + Buf 1.x | `services/proto` 是唯一源文件；生成代码不手写 |
+| protobuf | Buf 1.72.0 + `grpcio-tools` 1.71.2 | `services/proto` 是唯一源文件；生成代码不手写；Go 走 `buf generate`，Python 走 `grpc_tools.protoc`，工具版本见 PHASE_1_10_GOPYTHON_GRPC.md |
 | 容器 | Docker Compose v2 | 仅用于后续云端部署；Mac 本地开发阶段不依赖 Docker |
 
 版本使用小版本范围而非浮动 `latest`。真正创建镜像和锁定补丁版本时，再由依赖更新流程提交具体 patch 版本。
@@ -23,15 +23,15 @@
 - Homebrew：6.0.15
 - MySQL：Homebrew `mysql@8.0`，客户端 `8.0.46`，服务进程监听 `127.0.0.1:3306`
 - Redis：`8.10.0`，服务状态为 started，监听 `127.0.0.1:6379`
-- Redis 当前实例已启用 `protected-mode` 和回环监听；AOF 与密码认证尚未按阶段 1.2 目标完成配置。
-- MySQL 服务端 SQL 元数据尚未读取成功，因为当前 root 连接需要密码；后续使用开发应用账号验证服务端版本、字符集和时区。
+- Redis 当前实例已启用 `protected-mode`、回环监听、密码认证与 AOF 持久化（阶段 1.2 已完成，见 PHASE_1_2_OPERATIONS.md）。
+- MySQL 服务端版本、utf8mb4 与 Asia/Shanghai 时区已通过开发应用账号验证（阶段 1.2 已完成）。
 
 ## 2. 拓扑和通信边界
 
 ### Mac 本地开发
 
 ```text
-本机 go-api ── HTTP ──▶ 本机 ai-service
+本机 go-api ── gRPC ──▶ 本机 ai-service
      ├── MySQL：Mac 本机安装并运行
      └── Redis：Mac 本机安装并运行
 ```
@@ -54,7 +54,6 @@
 | 服务 | 容器端口 | 本地默认映射 | 是否公网暴露 | 说明 |
 |---|---:|---:|---|---|
 | Go API HTTP | 8080 | 8080 | 仅通过 HTTPS 入口 | `/healthz` 表示进程存活 |
-| AI HTTP | 8000 | 不映射 | 否 | 后续用于 AI 服务运维健康检查 |
 | AI gRPC | 50051 | 50051（仅开发可选） | 否 | Go 使用 `ai-service:50051` |
 | MySQL | 3306 | Mac 本机 `127.0.0.1:3306`；云端不映射 | 否 | 本地 Go 使用 `127.0.0.1`，云端 Go 使用 `mysql` |
 | Redis | 6379 | Mac 本机 `127.0.0.1:6379`；云端不映射 | 否 | 本地 Go 使用 `127.0.0.1:6379`，云端 Go 使用 `redis:6379` |
@@ -79,7 +78,7 @@ MVP 不引入 RabbitMQ、Kafka、Redis Streams 或其他消息队列。普通聊
 
 - `GET /healthz`：只证明进程能接受 HTTP 请求，成功返回 200；不检查 MySQL、Redis 或 AI。
 - `GET /readyz`：检查 Go 当前需要的 MySQL、Redis、AI gRPC 依赖；全部通过返回 200，否则返回非 2xx，并返回各依赖状态。
-- AI 服务自己的健康检查只证明 AI 进程可用；Go 的 `/readyz` 才是对外业务入口的依赖就绪判断。
+- AI 服务不提供独立的 HTTP 健康检查入口；其可用性由 Go `/readyz` 的 `python_grpc` 检查项（gRPC 连接就绪）判定。
 
 ## 7. 1.0 验收清单
 

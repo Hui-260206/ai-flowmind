@@ -16,3 +16,7 @@ services/backups/
 
 .dsh-tools
 .npm-cache
+
+# JetBrains IDE
+.idea/
+*.iml
