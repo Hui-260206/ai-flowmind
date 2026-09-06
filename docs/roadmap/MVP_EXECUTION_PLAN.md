@@ -37,7 +37,7 @@ ai-flowmind/
 | 0 | 接口和边界设计 | OpenAPI、proto、数据模型完成 |
 | 1 | 服务端基础工程 | Go、Python、MySQL、Redis 可启动 |
 | 2 | Go 数据层和领域模型 | 会话、消息、Outbox migration 完成 |
-| 3 | Go 聊天 API | 使用 Fake AI 完成服务端闭环 |
+| 3 | Go 聊天 API | 使用 Go 进程内 Fake AI 完成服务端闭环 |
 | 4 | Python AI 服务 | gRPC ChatService 和真实 Provider 完成 |
 | 5 | Go–Python gRPC 联调 | Go 通过 gRPC 获取 AI 回复 |
 | 6 | Redis 能力 | 幂等、会话锁、限流完成 |
@@ -170,26 +170,28 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 
 ## 7. 阶段 3：Go 聊天 API
 
+> ✅ 已完成（2026-09-06）。Go API 已实现匿名会话创建、列表、软删除、消息历史和同步发送消息；主链路使用确定性的 Go 进程内 Fake AI，不依赖 Python gRPC。重复 `client_message_id` 当前返回 `409 DUPLICATE_REQUEST`；可重放幂等结果、会话锁与限流仍由阶段 6 实现。
+
 ### 目标
 
 先不依赖真实模型，使用 Fake AI Client 完成 Go 服务端的业务闭环。
 
 ### 任务
 
-- [ ] 实现创建会话；
-- [ ] 实现会话列表；
-- [ ] 实现消息列表；
-- [ ] 实现发送消息；
-- [ ] 实现删除会话；
-- [ ] 实现消息长度校验；
-- [ ] 实现上下文读取；
-- [ ] 实现上下文截断；
-- [ ] 实现 Fake AI Client；
-- [ ] 保存用户消息；
-- [ ] 保存 AI 消息；
-- [ ] 更新会话时间和标题；
-- [ ] 实现统一错误状态码；
-- [ ] 为所有接口增加 request_id。
+- [x] 实现创建会话；
+- [x] 实现会话列表；
+- [x] 实现消息列表；
+- [x] 实现发送消息；
+- [x] 实现删除会话；
+- [x] 实现消息长度校验；
+- [x] 实现上下文读取；
+- [x] 实现上下文截断；
+- [x] 实现 Go 进程内 Fake AI Client；
+- [x] 保存用户消息；
+- [x] 保存 AI 消息；
+- [x] 更新会话时间和标题；
+- [x] 实现统一错误状态码；
+- [x] 为所有接口增加 request_id。
 
 ### 发送消息流程
 

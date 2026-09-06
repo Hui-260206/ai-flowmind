@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"ai-flowmind/services/go-api/internal/model"
 
+	drivermysql "github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -61,9 +63,21 @@ func (r *gormMessageRepository) AppendMessage(ctx context.Context, m *model.Mess
 		return tx.Create(m).Error
 	})
 	if err != nil {
+		if isDuplicateClientMessageID(err, m.ClientMessageID != nil) {
+			return 0, ErrDuplicateClientMessageID
+		}
 		return 0, err
 	}
 	return seq, nil
+}
+
+func isDuplicateClientMessageID(err error, hasClientMessageID bool) bool {
+	if !hasClientMessageID {
+		return false
+	}
+	var mysqlError *drivermysql.MySQLError
+	return errors.As(err, &mysqlError) && mysqlError.Number == 1062 &&
+		strings.Contains(mysqlError.Message, "uq_messages_session_client")
 }
 
 func (r *gormMessageRepository) ListBySession(ctx context.Context, sessionID string, limit int) ([]model.Message, error) {

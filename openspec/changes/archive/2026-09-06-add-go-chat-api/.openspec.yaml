@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-06
+goal: Provide the MVP server-side chat lifecycle without making real gRPC model
+  calls; reserve the existing gRPC client integration for Phase 5.

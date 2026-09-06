@@ -14,7 +14,7 @@ import (
 )
 
 func testServer() *Server {
-	return New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{})
+	return New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{RequirePythonGRPC: true})
 }
 
 func TestHealthz(t *testing.T) {
@@ -52,9 +52,10 @@ func TestReadyzFailsWithSpecificUnconfiguredDependencies(t *testing.T) {
 
 func TestReadyzSucceedsWhenAllDependenciesAreHealthy(t *testing.T) {
 	server := New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{
-		MySQL:      func(context.Context) error { return nil },
-		Redis:      func(context.Context) error { return nil },
-		PythonGRPC: func(context.Context) error { return nil },
+		MySQL:             func(context.Context) error { return nil },
+		Redis:             func(context.Context) error { return nil },
+		PythonGRPC:        func(context.Context) error { return nil },
+		RequirePythonGRPC: true,
 	})
 	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	res := httptest.NewRecorder()
@@ -79,9 +80,10 @@ func TestReadyzSucceedsWhenAllDependenciesAreHealthy(t *testing.T) {
 
 func TestReadyzReportsDependencyError(t *testing.T) {
 	server := New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{
-		MySQL:      func(context.Context) error { return errors.New("connection refused") },
-		Redis:      func(context.Context) error { return nil },
-		PythonGRPC: func(context.Context) error { return nil },
+		MySQL:             func(context.Context) error { return errors.New("connection refused") },
+		Redis:             func(context.Context) error { return nil },
+		PythonGRPC:        func(context.Context) error { return nil },
+		RequirePythonGRPC: true,
 	})
 	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	res := httptest.NewRecorder()

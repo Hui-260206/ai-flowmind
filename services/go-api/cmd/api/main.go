@@ -8,13 +8,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"ai-flowmind/services/go-api/internal/chat"
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/grpcclient"
 	"ai-flowmind/services/go-api/internal/httpserver"
 	"ai-flowmind/services/go-api/internal/migrate"
 	"ai-flowmind/services/go-api/internal/mysql"
 	redisclient "ai-flowmind/services/go-api/internal/redis"
+	"ai-flowmind/services/go-api/internal/repository"
 )
 
 func main() {
@@ -59,10 +62,22 @@ func main() {
 			logger.Error("close grpc client failed", "error", err)
 		}
 	}()
+	chatService, err := chat.New(chat.Dependencies{
+		Sessions:  repository.NewSessionRepository(db.DB()),
+		Messages:  repository.NewMessageRepository(db.DB()),
+		Completer: chat.FakeCompleter{},
+		Now:       time.Now,
+		NewID:     chat.NewID,
+	})
+	if err != nil {
+		logger.Error("create chat service failed", "error", err)
+		os.Exit(1)
+	}
 	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{
 		MySQL:      db.Check,
 		Redis:      cache.Check,
 		PythonGRPC: grpcClient.Check,
+		Chat:       chatService,
 	})
 
 	serverErrors := make(chan error, 1)

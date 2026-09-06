@@ -66,7 +66,7 @@ func (r *gormSessionRepository) UpdateTitleAndTime(ctx context.Context, ownerKey
 		Updates(map[string]any{
 			"title":           title,
 			"last_message_at": lastMessageAt,
-			"updated_at":      time.Now(),
+			"updated_at":      lastMessageAt,
 		})
 	if res.Error != nil {
 		return res.Error
