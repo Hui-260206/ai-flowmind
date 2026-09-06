@@ -169,7 +169,7 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 
 ## 7. 阶段 3：Go 聊天 API
 
-> ✅ 已完成（2026-09-06）。Go API 已实现匿名会话创建、列表、软删除、消息历史和同步发送消息；主链路使用确定性的 Go 进程内 Fake AI，不依赖 Python gRPC。重复 `client_message_id` 当前返回 `409 DUPLICATE_REQUEST`；可重放幂等结果、会话锁与限流仍由阶段 6 实现。
+> ✅ 已完成（2026-09-06）。Go API 已实现匿名会话创建、列表、软删除、消息历史和同步发送消息；阶段 3 的进程内 Fake 用于确定性测试，生产链路已在阶段 5 切换至 Python gRPC。阶段 6 进一步提供可重放幂等结果、会话锁与限流。
 
 ### 目标
 
@@ -289,21 +289,23 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 
 ## 10. 阶段 6：Redis 能力
 
+> ✅ 已完成（2026-09-06）。发送消息已通过 Redis 实现 48 小时幂等回放、30 秒带 token 的会话锁与每匿名设备每 UTC 分钟 20 次限流；Redis 不可用时发送明确返回 503，MySQL 历史读取保持可用。Redis 丢失短期状态后由 MySQL 唯一约束保底，不猜测消息配对或再次调用模型。
+
 ### 目标
 
 让 MVP 具备重复请求保护、会话串行化和基础限流。
 
 ### 任务
 
-- [ ] 实现幂等 Key：`idempotency:{owner_key}:{client_message_id}`；
-- [ ] 实现 `processing/completed/failed` 状态；
-- [ ] 缓存幂等结果关联的消息 ID；
-- [ ] 实现会话锁：`lock:conversation:{session_id}`；
-- [ ] 为锁设置 TTL；
-- [ ] 实现匿名设备限流；
-- [ ] 实现会话级并发限制；
-- [ ] 增加 Redis 不可用时的错误策略；
-- [ ] 测试重复请求和并发请求。
+- [x] 实现幂等 Key：`idempotency:{owner_key}:{session_id}:{client_message_id}`；
+- [x] 实现 `processing/completed/failed` 状态；
+- [x] 缓存幂等结果关联的消息 ID；
+- [x] 实现会话锁：`lock:conversation:{session_id}`；
+- [x] 为锁设置 TTL；
+- [x] 实现匿名设备限流；
+- [x] 实现会话级并发限制；
+- [x] 增加 Redis 不可用时的错误策略；
+- [x] 测试重复请求和并发请求。
 
 ### 建议初始配置
 

@@ -16,6 +16,8 @@ import (
 	"ai-flowmind/services/go-api/internal/health"
 	"ai-flowmind/services/go-api/internal/model"
 	"ai-flowmind/services/go-api/internal/repository"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestChatHTTPWorkflowAndRequestID(t *testing.T) {
@@ -75,7 +77,9 @@ func TestChatHTTPWorkflowAndRequestID(t *testing.T) {
 	}
 
 	duplicate := serve(server, http.MethodPost, "/api/v1/sessions/"+session.ID+"/messages", testHTTPClientIDA, "", `{"content":"你好","client_message_id":"m-1"}`)
-	assertAPIError(t, duplicate, http.StatusConflict, "DUPLICATE_REQUEST")
+	if duplicate.Code != http.StatusOK {
+		t.Fatalf("duplicate response = %d %s", duplicate.Code, duplicate.Body.String())
+	}
 	if len(repos.messages[session.ID]) != 2 {
 		t.Fatalf("duplicate request wrote messages: %#v", repos.messages[session.ID])
 	}
@@ -98,6 +102,79 @@ func TestChatHTTPValidatesInputAndConcealsOtherOwner(t *testing.T) {
 	assertAPIError(t, serve(server, http.MethodPost, "/api/v1/sessions/"+session.ID+"/messages", testHTTPClientIDA, "", `{`), http.StatusBadRequest, "INVALID_ARGUMENT")
 }
 
+func TestRedisOutageFailsSendButNotMySQLBackedHistory(t *testing.T) {
+	repos := &httpMemoryRepository{sessions: map[string]model.Session{}, messages: map[string][]model.Message{}, operations: map[string]model.SendOperation{}}
+	service, err := chat.New(chat.Dependencies{
+		Sessions: repos, Messages: repos, Operations: httpSendOperations{repos}, Completer: chat.FakeCompleter{}, Reliability: unavailableReliability{},
+		Now: time.Now, NewID: func() string { return "session-1" },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{Chat: service, MySQL: func(context.Context) error { return nil }, Redis: func(context.Context) error { return nil }})
+	create := serve(server, http.MethodPost, "/api/v1/sessions", testHTTPClientIDA, "", "")
+	var session sessionResponse
+	decodeBody(t, create, &session)
+	assertAPIError(t, serve(server, http.MethodPost, "/api/v1/sessions/"+session.ID+"/messages", testHTTPClientIDA, "", `{"content":"hello","client_message_id":"m-1"}`), http.StatusServiceUnavailable, "REDIS_UNAVAILABLE")
+	history := serve(server, http.MethodGet, "/api/v1/sessions/"+session.ID+"/messages", testHTTPClientIDA, "", "")
+	if history.Code != http.StatusOK {
+		t.Fatalf("history during Redis outage = %d %s", history.Code, history.Body.String())
+	}
+}
+
+type unavailableReliability struct{}
+
+func (unavailableReliability) Claim(context.Context, chat.IdempotencyRequest) (chat.IdempotencyClaim, error) {
+	return chat.IdempotencyClaim{}, errors.New("redis unavailable")
+}
+func (unavailableReliability) Reclaim(context.Context, chat.IdempotencyRequest) (chat.IdempotencyClaim, error) {
+	return chat.IdempotencyClaim{}, errors.New("redis unavailable")
+}
+func (unavailableReliability) AttachUserMessage(context.Context, chat.IdempotencyClaim, string) error {
+	return errors.New("unreachable")
+}
+func (unavailableReliability) Complete(context.Context, chat.IdempotencyClaim, string, string) error {
+	return errors.New("unreachable")
+}
+func (unavailableReliability) Fail(context.Context, chat.IdempotencyClaim, string) error {
+	return errors.New("unreachable")
+}
+func (unavailableReliability) Abort(context.Context, chat.IdempotencyClaim) error {
+	return errors.New("unreachable")
+}
+func (unavailableReliability) AcquireSession(context.Context, string) (chat.SessionLock, bool, error) {
+	return chat.SessionLock{}, false, errors.New("unreachable")
+}
+func (unavailableReliability) ReleaseSession(context.Context, chat.SessionLock) error {
+	return errors.New("unreachable")
+}
+func (unavailableReliability) AllowOwner(context.Context, string, time.Time) (bool, error) {
+	return false, errors.New("unreachable")
+}
+
+func TestWriteChatErrorMapsReliabilityFailures(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{name: "session busy", err: chat.ErrSessionBusy, status: http.StatusConflict, code: "SESSION_BUSY"},
+		{name: "rate limited", err: chat.ErrRateLimited, status: http.StatusTooManyRequests, code: "RATE_LIMITED"},
+		{name: "redis unavailable", err: chat.ErrRedisUnavailable, status: http.StatusServiceUnavailable, code: "REDIS_UNAVAILABLE"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(recorder)
+			context.Request = httptest.NewRequest(http.MethodGet, "/test-error", nil)
+			context.Set("request_id", "req-reliability")
+			writeChatError(context, tt.err)
+			assertAPIError(t, recorder, tt.status, tt.code)
+		})
+	}
+}
+
 const (
 	testHTTPClientIDA = "123e4567-e89b-12d3-a456-426614174000"
 	testHTTPClientIDB = "123e4567-e89b-12d3-a456-426614174001"
@@ -105,11 +182,12 @@ const (
 
 func testChatServer(t *testing.T) (*Server, *httpMemoryRepository) {
 	t.Helper()
-	repos := &httpMemoryRepository{sessions: map[string]model.Session{}, messages: map[string][]model.Message{}}
+	repos := &httpMemoryRepository{sessions: map[string]model.Session{}, messages: map[string][]model.Message{}, operations: map[string]model.SendOperation{}}
 	id := 0
 	service, err := chat.New(chat.Dependencies{
-		Sessions: repos, Messages: repos, Completer: chat.FakeCompleter{}, Now: time.Now,
-		NewID: func() string { id++; return "session-or-message-" + string(rune('0'+id)) },
+		Sessions: repos, Messages: repos, Operations: httpSendOperations{repos}, Completer: chat.FakeCompleter{}, Now: time.Now,
+		Reliability: chat.NewMemoryReliability(20),
+		NewID:       func() string { id++; return "session-or-message-" + string(rune('0'+id)) },
 	})
 	if err != nil {
 		t.Fatalf("chat.New() error = %v", err)
@@ -160,8 +238,9 @@ func assertAPIError(t *testing.T, response *httptest.ResponseRecorder, status in
 }
 
 type httpMemoryRepository struct {
-	sessions map[string]model.Session
-	messages map[string][]model.Message
+	sessions   map[string]model.Session
+	messages   map[string][]model.Message
+	operations map[string]model.SendOperation
 }
 
 func (r *httpMemoryRepository) Create(_ context.Context, session *model.Session) error {
@@ -227,4 +306,63 @@ func (r *httpMemoryRepository) GetByClientMessageID(_ context.Context, id, clien
 		}
 	}
 	return nil, repository.ErrNotFound
+}
+func (r *httpMemoryRepository) GetMessageByID(_ context.Context, sessionID, id string) (*model.Message, error) {
+	for _, message := range r.messages[sessionID] {
+		if message.ID == id {
+			return &message, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+func (r *httpMemoryRepository) GetAssistantByOperation(_ context.Context, sessionID, operationID string) (*model.Message, error) {
+	for _, message := range r.messages[sessionID] {
+		if message.Role == model.RoleAssistant && message.SendOperationID != nil && *message.SendOperationID == operationID {
+			return &message, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+
+type httpSendOperations struct{ repositories *httpMemoryRepository }
+
+func (r httpSendOperations) Get(_ context.Context, ownerKey, sessionID, clientMessageID string) (*model.SendOperation, error) {
+	operation, ok := r.repositories.operations[httpOperationKey(ownerKey, sessionID, clientMessageID)]
+	if !ok {
+		return nil, repository.ErrNotFound
+	}
+	return &operation, nil
+}
+func (r httpSendOperations) Create(_ context.Context, operation *model.SendOperation) error {
+	key := httpOperationKey(operation.OwnerKey, operation.SessionID, operation.ClientMessageID)
+	if _, exists := r.repositories.operations[key]; exists {
+		return repository.ErrDuplicateClientMessageID
+	}
+	r.repositories.operations[key] = *operation
+	return nil
+}
+func (r httpSendOperations) SetUserMessage(_ context.Context, ownerKey, sessionID, clientMessageID, messageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.UserMessageID = messageID })
+}
+func (r httpSendOperations) SetAssistantMessage(_ context.Context, ownerKey, sessionID, clientMessageID, messageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.AssistantMessageID = messageID })
+}
+func (r httpSendOperations) MarkFailed(_ context.Context, ownerKey, sessionID, clientMessageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.Status = repository.SendOperationFailed })
+}
+func (r httpSendOperations) MarkCompleted(_ context.Context, ownerKey, sessionID, clientMessageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.Status = repository.SendOperationCompleted })
+}
+func (r *httpMemoryRepository) updateOperation(ownerKey, sessionID, clientMessageID string, update func(*model.SendOperation)) error {
+	key := httpOperationKey(ownerKey, sessionID, clientMessageID)
+	operation, ok := r.operations[key]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	update(&operation)
+	r.operations[key] = operation
+	return nil
+}
+func httpOperationKey(ownerKey, sessionID, clientMessageID string) string {
+	return ownerKey + "\x00" + sessionID + "\x00" + clientMessageID
 }

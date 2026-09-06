@@ -24,6 +24,13 @@ type MessageRepository interface {
 
 	// GetByClientMessageID 幂等查询：同会话内按 client_message_id 找消息。
 	GetByClientMessageID(ctx context.Context, sessionID, clientMessageID string) (*model.Message, error)
+
+	// GetMessageByID 在已知会话范围内读取一条精确消息，避免跨会话重放消息。
+	GetMessageByID(ctx context.Context, sessionID, id string) (*model.Message, error)
+
+	// GetAssistantByOperation finds the durable assistant result produced for a
+	// send operation when an update of the operation record was interrupted.
+	GetAssistantByOperation(ctx context.Context, sessionID, operationID string) (*model.Message, error)
 }
 
 type gormMessageRepository struct{ db *gorm.DB }
@@ -99,6 +106,30 @@ func (r *gormMessageRepository) GetByClientMessageID(ctx context.Context, sessio
 	err := r.db.WithContext(ctx).
 		Where("session_id = ? AND client_message_id = ?", sessionID, clientMessageID).
 		First(&m).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (r *gormMessageRepository) GetMessageByID(ctx context.Context, sessionID, id string) (*model.Message, error) {
+	var m model.Message
+	err := r.db.WithContext(ctx).Where("session_id = ? AND id = ?", sessionID, id).First(&m).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (r *gormMessageRepository) GetAssistantByOperation(ctx context.Context, sessionID, operationID string) (*model.Message, error) {
+	var m model.Message
+	err := r.db.WithContext(ctx).Where("session_id = ? AND send_operation_id = ? AND role = ?", sessionID, operationID, model.RoleAssistant).First(&m).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}

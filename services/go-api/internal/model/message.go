@@ -32,8 +32,27 @@ type Message struct {
 	Content          string        `gorm:"column:content"`
 	Status           MessageStatus `gorm:"column:status"`
 	ClientMessageID  *string       `gorm:"column:client_message_id"`
+	SendOperationID  *string       `gorm:"column:send_operation_id"`
 	ModelName        *string       `gorm:"column:model_name"`
 	PromptTokens     *int          `gorm:"column:prompt_tokens"`
 	CompletionTokens *int          `gorm:"column:completion_tokens"`
 	CreatedAt        time.Time     `gorm:"column:created_at"`
+}
+
+// SendOperation records the durable recovery state for one client send. Redis
+// coordinates active work, while this record preserves the exact message pair
+// when a Redis command succeeds remotely but its response is lost locally.
+func (SendOperation) TableName() string { return "chat_send_operations" }
+
+type SendOperation struct {
+	ID                 string    `gorm:"column:id;primaryKey"`
+	OwnerKey           string    `gorm:"column:owner_key"`
+	SessionID          string    `gorm:"column:session_id"`
+	ClientMessageID    string    `gorm:"column:client_message_id"`
+	Fingerprint        string    `gorm:"column:fingerprint"`
+	Status             string    `gorm:"column:status"`
+	UserMessageID      string    `gorm:"column:user_message_id"`
+	AssistantMessageID string    `gorm:"column:assistant_message_id"`
+	CreatedAt          time.Time `gorm:"column:created_at"`
+	UpdatedAt          time.Time `gorm:"column:updated_at"`
 }

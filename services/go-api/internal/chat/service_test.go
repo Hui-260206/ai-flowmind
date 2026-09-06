@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ai-flowmind/services/go-api/internal/model"
+	"ai-flowmind/services/go-api/internal/repository"
 )
 
 func TestNewRejectsMissingDependency(t *testing.T) {
@@ -17,7 +18,9 @@ func TestNewRejectsMissingDependency(t *testing.T) {
 	}{
 		{name: "sessions", mutate: func(deps *Dependencies) { deps.Sessions = nil }},
 		{name: "messages", mutate: func(deps *Dependencies) { deps.Messages = nil }},
+		{name: "operations", mutate: func(deps *Dependencies) { deps.Operations = nil }},
 		{name: "completer", mutate: func(deps *Dependencies) { deps.Completer = nil }},
+		{name: "reliability", mutate: func(deps *Dependencies) { deps.Reliability = nil }},
 		{name: "clock", mutate: func(deps *Dependencies) { deps.Now = nil }},
 		{name: "id generator", mutate: func(deps *Dependencies) { deps.NewID = nil }},
 	}
@@ -42,18 +45,20 @@ func TestNewAcceptsExplicitDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	if service == nil || service.sessions == nil || service.messages == nil || service.completer == nil || service.now == nil || service.newID == nil {
+	if service == nil || service.sessions == nil || service.messages == nil || service.operations == nil || service.completer == nil || service.reliability == nil || service.now == nil || service.newID == nil {
 		t.Fatalf("New() returned incomplete service: %#v", service)
 	}
 }
 
 func testDependencies() Dependencies {
 	return Dependencies{
-		Sessions:  sessionRepositoryStub{},
-		Messages:  messageRepositoryStub{},
-		Completer: completerStub{},
-		Now:       func() time.Time { return time.Unix(0, 0).UTC() },
-		NewID:     func() string { return "test-id" },
+		Sessions:    sessionRepositoryStub{},
+		Messages:    messageRepositoryStub{},
+		Operations:  sendOperationRepositoryStub{},
+		Completer:   completerStub{},
+		Reliability: NewMemoryReliability(20),
+		Now:         func() time.Time { return time.Unix(0, 0).UTC() },
+		NewID:       func() string { return "test-id" },
 	}
 }
 
@@ -82,8 +87,33 @@ func (messageRepositoryStub) ListBySession(context.Context, string, int) ([]mode
 func (messageRepositoryStub) GetByClientMessageID(context.Context, string, string) (*model.Message, error) {
 	return nil, nil
 }
+func (messageRepositoryStub) GetMessageByID(context.Context, string, string) (*model.Message, error) {
+	return nil, nil
+}
+func (messageRepositoryStub) GetAssistantByOperation(context.Context, string, string) (*model.Message, error) {
+	return nil, nil
+}
 
 type completerStub struct{}
+
+type sendOperationRepositoryStub struct{}
+
+func (sendOperationRepositoryStub) Get(context.Context, string, string, string) (*model.SendOperation, error) {
+	return nil, repository.ErrNotFound
+}
+func (sendOperationRepositoryStub) Create(context.Context, *model.SendOperation) error { return nil }
+func (sendOperationRepositoryStub) SetUserMessage(context.Context, string, string, string, string) error {
+	return nil
+}
+func (sendOperationRepositoryStub) SetAssistantMessage(context.Context, string, string, string, string) error {
+	return nil
+}
+func (sendOperationRepositoryStub) MarkFailed(context.Context, string, string, string) error {
+	return nil
+}
+func (sendOperationRepositoryStub) MarkCompleted(context.Context, string, string, string) error {
+	return nil
+}
 
 func (completerStub) Complete(context.Context, CompletionRequest) (CompletionResult, error) {
 	return CompletionResult{}, nil

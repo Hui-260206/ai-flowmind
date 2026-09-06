@@ -193,6 +193,13 @@ func TestAppendMessageSeqAndOrder(t *testing.T) {
 	if found.ID != user.ID {
 		t.Fatalf("found.ID = %s, want %s", found.ID, user.ID)
 	}
+	byID, err := messages.GetMessageByID(ctx, s.ID, assistant.ID)
+	if err != nil || byID.ID != assistant.ID {
+		t.Fatalf("GetMessageByID() = %#v, %v", byID, err)
+	}
+	if _, err := messages.GetMessageByID(ctx, newTestID(), assistant.ID); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("cross-session GetMessageByID err = %v, want ErrNotFound", err)
+	}
 }
 
 func TestOutboxCreateAndMarkPublished(t *testing.T) {

@@ -26,8 +26,9 @@ func TestSendMessagePersistsPairUpdatesFirstTitleAndPreservesLaterTitle(t *testi
 	repos := newMemoryRepositories()
 	clock := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	service, err := New(Dependencies{
-		Sessions: repos, Messages: repos, Completer: &recordingCompleter{},
-		Now: func() time.Time { return clock }, NewID: sequentialID(),
+		Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{},
+		Reliability: NewMemoryReliability(20),
+		Now:         func() time.Time { return clock }, NewID: sequentialID(),
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -72,8 +73,9 @@ func TestSendMessagePersistsPairUpdatesFirstTitleAndPreservesLaterTitle(t *testi
 func TestSendMessageRejectsInvalidInputWithoutPersistence(t *testing.T) {
 	repos := newMemoryRepositories()
 	service, err := New(Dependencies{
-		Sessions: repos, Messages: repos, Completer: &recordingCompleter{},
-		Now: time.Now, NewID: sequentialID(),
+		Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{},
+		Reliability: NewMemoryReliability(20),
+		Now:         time.Now, NewID: sequentialID(),
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -102,24 +104,32 @@ func TestSendMessageRejectsInvalidInputWithoutPersistence(t *testing.T) {
 func TestSendMessageRejectsDuplicateWithoutSecondCompletion(t *testing.T) {
 	repos := newMemoryRepositories()
 	completer := &recordingCompleter{}
-	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Completer: completer, Now: time.Now, NewID: sequentialID()})
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: completer, Reliability: NewMemoryReliability(20), Now: time.Now, NewID: sequentialID()})
 	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
 	input := SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "hi", ClientMessageID: "same-id"}
 	if _, err := service.SendMessage(context.Background(), input); err != nil {
 		t.Fatalf("first SendMessage() error = %v", err)
 	}
-	if _, err := service.SendMessage(context.Background(), input); !errors.Is(err, ErrDuplicateRequest) {
-		t.Fatalf("duplicate SendMessage() error = %v, want ErrDuplicateRequest", err)
+	second, err := service.SendMessage(context.Background(), input)
+	if err != nil {
+		t.Fatalf("duplicate SendMessage() error = %v", err)
+	}
+	if second.UserMessage.ID != firstUserMessageID(repos, created.Session.ID) || second.AssistantMessage.Content != "助手回复" {
+		t.Fatalf("duplicate result = %#v, want replayed message pair", second)
 	}
 	if completer.calls != 1 {
 		t.Fatalf("completer calls = %d, want 1", completer.calls)
 	}
 }
 
+func firstUserMessageID(repos *memoryRepositories, sessionID string) string {
+	return repos.messages[sessionID][0].ID
+}
+
 func TestSendMessageMapsDatabaseDuplicateToDuplicateRequest(t *testing.T) {
 	repos := newMemoryRepositories()
 	completer := &recordingCompleter{}
-	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Completer: completer, Now: time.Now, NewID: sequentialID()})
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: completer, Reliability: NewMemoryReliability(20), Now: time.Now, NewID: sequentialID()})
 	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
 	repos.appendErr = repository.ErrDuplicateClientMessageID
 
@@ -136,9 +146,12 @@ func TestSendMessageMapsDatabaseDuplicateToDuplicateRequest(t *testing.T) {
 
 func TestSendMessageReportsCompleterFailureAfterKeepingUserMessage(t *testing.T) {
 	repos := newMemoryRepositories()
+	reliability := NewMemoryReliability(20)
+	completer := &recordingCompleter{err: errors.New("unavailable")}
 	service, _ := New(Dependencies{
-		Sessions: repos, Messages: repos, Completer: &recordingCompleter{err: errors.New("unavailable")},
-		Now: time.Now, NewID: sequentialID(),
+		Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: completer,
+		Reliability: reliability,
+		Now:         time.Now, NewID: sequentialID(),
 	})
 	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
 	_, err := service.SendMessage(context.Background(), SendMessageInput{
@@ -150,6 +163,178 @@ func TestSendMessageReportsCompleterFailureAfterKeepingUserMessage(t *testing.T)
 	messages, _ := repos.ListBySession(context.Background(), created.Session.ID, 0)
 	if len(messages) != 1 || messages[0].Role != model.RoleUser {
 		t.Fatalf("AI failure should retain only user message, got %#v", messages)
+	}
+	completer.err = nil
+	result, err := service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "hello", ClientMessageID: "m-1"})
+	if err != nil || result.UserMessage.ID != messages[0].ID || result.AssistantMessage.Role != model.RoleAssistant {
+		t.Fatalf("failed request resume = %#v, %v", result, err)
+	}
+	messages, _ = repos.ListBySession(context.Background(), created.Session.ID, 0)
+	if len(messages) != 2 || completer.calls != 2 {
+		t.Fatalf("resume messages/calls = %d/%d, want 2/2", len(messages), completer.calls)
+	}
+}
+
+func TestSendMessageRejectsBusySessionWithoutPersistence(t *testing.T) {
+	repos := newMemoryRepositories()
+	reliability := NewMemoryReliability(20)
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{}, Reliability: reliability, Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	lock, ok, err := reliability.AcquireSession(context.Background(), created.Session.ID)
+	if err != nil || !ok {
+		t.Fatalf("AcquireSession() = %#v, %v", lock, err)
+	}
+	_, err = service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "blocked", ClientMessageID: "busy"})
+	if !errors.Is(err, ErrSessionBusy) {
+		t.Fatalf("SendMessage() error = %v, want ErrSessionBusy", err)
+	}
+	messages, _ := repos.ListBySession(context.Background(), created.Session.ID, 0)
+	if len(messages) != 0 {
+		t.Fatalf("busy request persisted messages: %#v", messages)
+	}
+	_ = reliability.ReleaseSession(context.Background(), lock)
+}
+
+func TestSendMessageRateLimitAndCompletedReplay(t *testing.T) {
+	repos := newMemoryRepositories()
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{}, Reliability: NewMemoryReliability(1), Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	input := SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "first", ClientMessageID: "first"}
+	if _, err := service.SendMessage(context.Background(), input); err != nil {
+		t.Fatalf("first SendMessage() error = %v", err)
+	}
+	if _, err := service.SendMessage(context.Background(), input); err != nil {
+		t.Fatalf("completed replay error = %v", err)
+	}
+	_, err := service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "second", ClientMessageID: "second"})
+	if !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("second SendMessage() error = %v, want ErrRateLimited", err)
+	}
+}
+
+func TestBusySessionDoesNotConsumeOwnerRateLimit(t *testing.T) {
+	repos := newMemoryRepositories()
+	reliability := NewMemoryReliability(1)
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{}, Reliability: reliability, Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	lock, ok, err := reliability.AcquireSession(context.Background(), created.Session.ID)
+	if err != nil || !ok {
+		t.Fatalf("AcquireSession() = %#v, %v", lock, err)
+	}
+	_, err = service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "busy", ClientMessageID: "busy"})
+	if !errors.Is(err, ErrSessionBusy) {
+		t.Fatalf("busy SendMessage() error = %v", err)
+	}
+	_ = reliability.ReleaseSession(context.Background(), lock)
+	if _, err := service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "accepted", ClientMessageID: "accepted"}); err != nil {
+		t.Fatalf("request after busy error = %v; busy request must not consume quota", err)
+	}
+}
+
+func TestSendMessageFallsBackToMySQLDuplicateWhenIdempotencyRecordIsLost(t *testing.T) {
+	repos := newMemoryRepositories()
+	firstReliability := NewMemoryReliability(20)
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{}, Reliability: firstReliability, Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	input := SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "first", ClientMessageID: "same"}
+	if _, err := service.SendMessage(context.Background(), input); err != nil {
+		t.Fatalf("first SendMessage() error = %v", err)
+	}
+	service.reliability = NewMemoryReliability(20) // Simulates expired/lost Redis volatile state.
+	result, err := service.SendMessage(context.Background(), input)
+	if err != nil || result.AssistantMessage.Role != model.RoleAssistant {
+		t.Fatalf("lost-record retry result = %#v, %v; want durable replay", result, err)
+	}
+}
+
+type flakyReliability struct {
+	*MemoryReliability
+	failAttach   bool
+	failComplete bool
+}
+
+func (f *flakyReliability) AttachUserMessage(ctx context.Context, claim IdempotencyClaim, userID string) error {
+	if f.failAttach {
+		f.failAttach = false
+		return errors.New("redis response lost after user message")
+	}
+	return f.MemoryReliability.AttachUserMessage(ctx, claim, userID)
+}
+
+func (f *flakyReliability) Complete(ctx context.Context, claim IdempotencyClaim, userID, assistantID string) error {
+	if f.failComplete {
+		f.failComplete = false
+		return errors.New("redis response lost after completion")
+	}
+	return f.MemoryReliability.Complete(ctx, claim, userID, assistantID)
+}
+
+func TestSendMessageRecoversAfterRedisAttachFailure(t *testing.T) {
+	repos := newMemoryRepositories()
+	reliability := &flakyReliability{MemoryReliability: NewMemoryReliability(20), failAttach: true}
+	completer := &recordingCompleter{}
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: completer, Reliability: reliability, Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	input := SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "recover", ClientMessageID: "recover-attach"}
+	if _, err := service.SendMessage(context.Background(), input); !errors.Is(err, ErrRedisUnavailable) {
+		t.Fatalf("first SendMessage() error = %v, want ErrRedisUnavailable", err)
+	}
+	result, err := service.SendMessage(context.Background(), input)
+	if err != nil || result.UserMessage.Seq != 1 || result.AssistantMessage.Seq != 2 || completer.calls != 1 {
+		t.Fatalf("recovered SendMessage() = %#v, %v; calls=%d", result, err, completer.calls)
+	}
+}
+
+func TestSendMessageReplaysAfterRedisCompletionFailure(t *testing.T) {
+	repos := newMemoryRepositories()
+	reliability := &flakyReliability{MemoryReliability: NewMemoryReliability(20), failComplete: true}
+	completer := &recordingCompleter{}
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: completer, Reliability: reliability, Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	input := SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "recover", ClientMessageID: "recover-complete"}
+	if _, err := service.SendMessage(context.Background(), input); !errors.Is(err, ErrRedisUnavailable) {
+		t.Fatalf("first SendMessage() error = %v, want ErrRedisUnavailable", err)
+	}
+	result, err := service.SendMessage(context.Background(), input)
+	if err != nil || result.AssistantMessage.Seq != 2 || completer.calls != 1 {
+		t.Fatalf("replayed SendMessage() = %#v, %v; calls=%d", result, err, completer.calls)
+	}
+}
+
+func TestSendMessageRecoversAssistantAfterSessionMetadataFailure(t *testing.T) {
+	repos := newMemoryRepositories()
+	completer := &recordingCompleter{}
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: completer, Reliability: NewMemoryReliability(20), Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	input := SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "recover", ClientMessageID: "recover-metadata"}
+	repos.updateErr = errors.New("transient session update failure")
+	if _, err := service.SendMessage(context.Background(), input); err == nil {
+		t.Fatal("first SendMessage() error = nil, want metadata error")
+	}
+	repos.updateErr = nil
+	result, err := service.SendMessage(context.Background(), input)
+	if err != nil || result.AssistantMessage.Seq != 2 || completer.calls != 1 {
+		t.Fatalf("recovered SendMessage() = %#v, %v; calls=%d", result, err, completer.calls)
+	}
+}
+
+type failingReliability struct{ *MemoryReliability }
+
+func (f failingReliability) Claim(context.Context, IdempotencyRequest) (IdempotencyClaim, error) {
+	return IdempotencyClaim{}, errors.New("redis down")
+}
+
+func TestSendMessageFailsClosedWhenReliabilityUnavailable(t *testing.T) {
+	repos := newMemoryRepositories()
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{}, Reliability: failingReliability{NewMemoryReliability(20)}, Now: time.Now, NewID: sequentialID()})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	_, err := service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "first", ClientMessageID: "first"})
+	if !errors.Is(err, ErrRedisUnavailable) {
+		t.Fatalf("SendMessage() error = %v, want ErrRedisUnavailable", err)
+	}
+	messages, _ := repos.ListBySession(context.Background(), created.Session.ID, 0)
+	if len(messages) != 0 {
+		t.Fatalf("Redis-unavailable request persisted messages: %#v", messages)
 	}
 }
 
@@ -197,15 +382,17 @@ func (c *recordingCompleter) Complete(_ context.Context, request CompletionReque
 }
 
 type memoryRepositories struct {
-	sessions  map[string]model.Session
-	messages  map[string][]model.Message
-	appendErr error
+	sessions   map[string]model.Session
+	messages   map[string][]model.Message
+	operations map[string]model.SendOperation
+	appendErr  error
+	updateErr  error
 }
 
 const testClientID = "123e4567-e89b-12d3-a456-426614174000"
 
 func newMemoryRepositories() *memoryRepositories {
-	return &memoryRepositories{sessions: map[string]model.Session{}, messages: map[string][]model.Message{}}
+	return &memoryRepositories{sessions: map[string]model.Session{}, messages: map[string][]model.Message{}, operations: map[string]model.SendOperation{}}
 }
 
 func (r *memoryRepositories) Create(_ context.Context, session *model.Session) error {
@@ -233,6 +420,9 @@ func (r *memoryRepositories) ListByOwner(_ context.Context, ownerKey string) ([]
 }
 
 func (r *memoryRepositories) UpdateTitleAndTime(_ context.Context, ownerKey, id, title string, lastMessageAt time.Time) error {
+	if r.updateErr != nil {
+		return r.updateErr
+	}
 	session, ok := r.sessions[id]
 	if !ok || session.OwnerKey != ownerKey || session.DeletedAt != nil {
 		return repository.ErrNotFound
@@ -285,6 +475,66 @@ func (r *memoryRepositories) GetByClientMessageID(_ context.Context, sessionID, 
 		}
 	}
 	return nil, repository.ErrNotFound
+}
+
+func (r *memoryRepositories) GetMessageByID(_ context.Context, sessionID, id string) (*model.Message, error) {
+	for _, message := range r.messages[sessionID] {
+		if message.ID == id {
+			return &message, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+func (r *memoryRepositories) GetAssistantByOperation(_ context.Context, sessionID, operationID string) (*model.Message, error) {
+	for _, message := range r.messages[sessionID] {
+		if message.Role == model.RoleAssistant && message.SendOperationID != nil && *message.SendOperationID == operationID {
+			return &message, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+
+type memorySendOperations struct{ repositories *memoryRepositories }
+
+func (r memorySendOperations) Get(_ context.Context, ownerKey, sessionID, clientMessageID string) (*model.SendOperation, error) {
+	operation, ok := r.repositories.operations[operationKey(ownerKey, sessionID, clientMessageID)]
+	if !ok {
+		return nil, repository.ErrNotFound
+	}
+	return &operation, nil
+}
+func (r memorySendOperations) Create(_ context.Context, operation *model.SendOperation) error {
+	key := operationKey(operation.OwnerKey, operation.SessionID, operation.ClientMessageID)
+	if _, exists := r.repositories.operations[key]; exists {
+		return repository.ErrDuplicateClientMessageID
+	}
+	r.repositories.operations[key] = *operation
+	return nil
+}
+func (r memorySendOperations) SetUserMessage(_ context.Context, ownerKey, sessionID, clientMessageID, messageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.UserMessageID = messageID })
+}
+func (r memorySendOperations) SetAssistantMessage(_ context.Context, ownerKey, sessionID, clientMessageID, messageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.AssistantMessageID = messageID })
+}
+func (r memorySendOperations) MarkFailed(_ context.Context, ownerKey, sessionID, clientMessageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.Status = repository.SendOperationFailed })
+}
+func (r memorySendOperations) MarkCompleted(_ context.Context, ownerKey, sessionID, clientMessageID string) error {
+	return r.repositories.updateOperation(ownerKey, sessionID, clientMessageID, func(operation *model.SendOperation) { operation.Status = repository.SendOperationCompleted })
+}
+func (r *memoryRepositories) updateOperation(ownerKey, sessionID, clientMessageID string, update func(*model.SendOperation)) error {
+	key := operationKey(ownerKey, sessionID, clientMessageID)
+	operation, ok := r.operations[key]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	update(&operation)
+	r.operations[key] = operation
+	return nil
+}
+func operationKey(ownerKey, sessionID, clientMessageID string) string {
+	return ownerKey + "\x00" + sessionID + "\x00" + clientMessageID
 }
 
 func sequentialID() func() string {

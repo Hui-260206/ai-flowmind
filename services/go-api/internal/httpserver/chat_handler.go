@@ -124,6 +124,12 @@ func writeChatError(c *gin.Context, err error) {
 		middleware.ErrorResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", "session not found")
 	case errors.Is(err, chat.ErrDuplicateRequest):
 		middleware.ErrorResponse(c, http.StatusConflict, "DUPLICATE_REQUEST", "duplicate client message ID")
+	case errors.Is(err, chat.ErrSessionBusy):
+		middleware.ErrorResponse(c, http.StatusConflict, "SESSION_BUSY", "chat session is busy")
+	case errors.Is(err, chat.ErrRateLimited):
+		middleware.ErrorResponse(c, http.StatusTooManyRequests, "RATE_LIMITED", "chat request rate limit exceeded")
+	case errors.Is(err, chat.ErrRedisUnavailable):
+		middleware.ErrorResponse(c, http.StatusServiceUnavailable, "REDIS_UNAVAILABLE", "chat reliability service is unavailable")
 	case errors.Is(err, chat.ErrAITimeout):
 		middleware.ErrorResponse(c, http.StatusGatewayTimeout, "AI_TIMEOUT", "AI service timed out")
 	case errors.Is(err, chat.ErrAIUnavailable):

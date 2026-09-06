@@ -20,6 +20,9 @@ const (
 	defaultGRPCKeepaliveTime = 30 * time.Second
 	defaultGRPCKeepaliveTO   = 10 * time.Second
 	defaultGRPCMessageBytes  = 1 << 20
+	defaultIdempotencyTTL    = 48 * time.Hour
+	defaultSessionLockTTL    = 30 * time.Second
+	defaultOwnerRateLimit    = 20
 )
 
 // Config 保存 API 及其依赖共享的配置。
@@ -59,9 +62,12 @@ type MySQLConfig struct {
 }
 
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
+	Addr                    string
+	Password                string
+	DB                      int
+	IdempotencyTTL          time.Duration
+	SessionLockTTL          time.Duration
+	OwnerRateLimitPerMinute int
 }
 
 type GRPCConfig struct {
@@ -126,6 +132,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if err := validateAITimeoutBudget(providerTimeout, grpcCfg.Timeout, writeTimeout); err != nil {
+		return Config{}, err
+	}
+	if err := validateSessionLockTimeoutBudget(redis.SessionLockTTL, grpcCfg.Timeout, writeTimeout); err != nil {
 		return Config{}, err
 	}
 
@@ -230,10 +239,25 @@ func loadRedisConfig() (RedisConfig, error) {
 	if err != nil {
 		return RedisConfig{}, err
 	}
+	idempotencyTTL, err := loadDuration("REDIS_IDEMPOTENCY_TTL", defaultIdempotencyTTL)
+	if err != nil {
+		return RedisConfig{}, err
+	}
+	lockTTL, err := loadDuration("REDIS_SESSION_LOCK_TTL", defaultSessionLockTTL)
+	if err != nil {
+		return RedisConfig{}, err
+	}
+	ownerRateLimit, err := loadInt("REDIS_OWNER_RATE_LIMIT_PER_MINUTE", defaultOwnerRateLimit, 1, 10000)
+	if err != nil {
+		return RedisConfig{}, err
+	}
 	return RedisConfig{
-		Addr:     addr,
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       db,
+		Addr:                    addr,
+		Password:                os.Getenv("REDIS_PASSWORD"),
+		DB:                      db,
+		IdempotencyTTL:          idempotencyTTL,
+		SessionLockTTL:          lockTTL,
+		OwnerRateLimitPerMinute: ownerRateLimit,
 	}, nil
 }
 
@@ -291,6 +315,18 @@ func validateAITimeoutBudget(provider, grpcTimeout, writeTimeout time.Duration) 
 	}
 	if grpcTimeout >= writeTimeout {
 		return fmt.Errorf("AI_GRPC_TIMEOUT must be less than GO_WRITE_TIMEOUT")
+	}
+	return nil
+}
+
+// validateSessionLockTimeoutBudget 确保会话锁覆盖整个同步请求预算。锁至少要
+// 比 HTTP 写超时和 AI gRPC deadline 都长，才能在正常完成路径中保护落库与清理。
+func validateSessionLockTimeoutBudget(lockTTL, grpcTimeout, writeTimeout time.Duration) error {
+	if lockTTL <= grpcTimeout {
+		return fmt.Errorf("REDIS_SESSION_LOCK_TTL must exceed AI_GRPC_TIMEOUT")
+	}
+	if lockTTL <= writeTimeout {
+		return fmt.Errorf("REDIS_SESSION_LOCK_TTL must exceed GO_WRITE_TIMEOUT")
 	}
 	return nil
 }

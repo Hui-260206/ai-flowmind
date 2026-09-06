@@ -67,12 +67,19 @@ func main() {
 		logger.Error("create grpc chat completer failed", "error", err)
 		os.Exit(1)
 	}
+	reliability, err := redisclient.NewReliabilityAdapter(cache, cfg.Redis.IdempotencyTTL, cfg.Redis.SessionLockTTL, cfg.Redis.OwnerRateLimitPerMinute)
+	if err != nil {
+		logger.Error("create Redis chat reliability adapter failed", "error", err)
+		os.Exit(1)
+	}
 	chatService, err := chat.New(chat.Dependencies{
-		Sessions:  repository.NewSessionRepository(db.DB()),
-		Messages:  repository.NewMessageRepository(db.DB()),
-		Completer: completer,
-		Now:       time.Now,
-		NewID:     chat.NewID,
+		Sessions:    repository.NewSessionRepository(db.DB()),
+		Messages:    repository.NewMessageRepository(db.DB()),
+		Operations:  repository.NewSendOperationRepository(db.DB()),
+		Completer:   completer,
+		Reliability: reliability,
+		Now:         time.Now,
+		NewID:       chat.NewID,
 	})
 	if err != nil {
 		logger.Error("create chat service failed", "error", err)

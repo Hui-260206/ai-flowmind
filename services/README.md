@@ -45,7 +45,9 @@ Python AI 服务只提供 gRPC，不引入 FastAPI/Uvicorn/HTTP 健康检查入�
 
 阶段 1.10 已完成 Go–Python gRPC 联通：Go 通过 `internal/grpcclient` 调用 Python `ChatService`（Fake Provider），并把 `python_grpc` 接入 `/readyz`。Go stub 由 `make proto-generate` 生成到 `go-api/internal/grpcclient/pb`（需 `$HOME/go/bin` 上的 protoc-gen-go / protoc-gen-go-grpc，通过 `go install` 安装）。proto 的 `go_package` 已统一为 `ai-flowmind/services/go-api/internal/grpcclient/pb`。
 
-阶段 4/5 已将 Go 聊天 REST API 的生产补全链路切换为 Python `ChatService` gRPC：`go-api/internal/chat.GRPCCompleter` 透传 request_id、应用 RPC deadline，并将模型名称和 token usage 写回助手消息。Python 可通过 `AI_PROVIDER=hy3` 使用 OpenAI-compatible HY3 服务；Provider URL、API Key 和 `AI_MODEL` 只由 Python 读取。`AI_PROVIDER_TIMEOUT` 使用秒并必须小于 Go 的 `AI_GRPC_TIMEOUT` 与 HTTP 写超时。生产 `/readyz` 将 Python gRPC 作为必要依赖；Python 不可用、Provider 失败和超时分别映射为 502 `AI_UNAVAILABLE`/`AI_PROVIDER_ERROR` 与 504 `AI_TIMEOUT`。Fake Provider 仍保留给离线和确定性测试；阶段 6 再补 Redis 幂等重放、会话锁与限流。
+阶段 4/5 已将 Go 聊天 REST API 的生产补全链路切换为 Python `ChatService` gRPC：`go-api/internal/chat.GRPCCompleter` 透传 request_id、应用 RPC deadline，并将模型名称和 token usage 写回助手消息。Python 可通过 `AI_PROVIDER=hy3` 使用 OpenAI-compatible HY3 服务；Provider URL、API Key 和 `AI_MODEL` 只由 Python 读取。`AI_PROVIDER_TIMEOUT` 使用秒并必须小于 Go 的 `AI_GRPC_TIMEOUT` 与 HTTP 写超时。生产 `/readyz` 将 Python gRPC 作为必要依赖；Python 不可用、Provider 失败和超时分别映射为 502 `AI_UNAVAILABLE`/`AI_PROVIDER_ERROR` 与 504 `AI_TIMEOUT`。Fake Provider 仍保留给离线和确定性测试。
+
+阶段 6 已启用 Redis 发送可靠性：`POST /api/v1/sessions/{session_id}/messages` 使用短期 Redis 状态实现 48 小时幂等回放、30 秒会话生成锁与每匿名设备每 UTC 分钟 20 次的固定窗口限流。相同请求成功后返回原消息对；同会话另一条正在生成的请求返回 `409 SESSION_BUSY`；超限返回 `429 RATE_LIMITED`。Redis 无法执行必要协调时发送请求返回 `503 REDIS_UNAVAILABLE`，但 MySQL 驱动的历史读取不受影响。Redis 只存 token、指纹和消息 ID，不存聊天正文，也不替代 MySQL；其记录失效后数据库唯一键仍阻止重复写入并返回 `409 DUPLICATE_REQUEST`。
 
 后续部署阶段使用 `.env.docker.example` 作为模板，并在云服务器上注入真实配置。`docker-compose.yaml` 不属于当前 Mac 本地开发启动路径。
 
