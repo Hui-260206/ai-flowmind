@@ -54,11 +54,15 @@ The Go API SHALL provide `POST /api/v1/sessions/{session_id}/messages` to synchr
 - **THEN** the API returns `409` with error code `DUPLICATE_REQUEST`, persists no additional message, and does not invoke the AI completer again
 
 ### Requirement: Deterministic Fake AI completion boundary
-The Go chat application SHALL depend on an AI-completion abstraction rather than a concrete HTTP handler dependency. For this phase, production wiring MUST use a deterministic in-process Fake implementation and MUST NOT invoke the Python gRPC service from the send-message request path.
+The Go chat application SHALL depend on an AI-completion abstraction rather than a concrete HTTP handler dependency. Production wiring MUST use a gRPC-backed implementation that invokes the internal Python AI service; deterministic in-process Fake implementations MUST remain available for unit tests and local deterministic development.
 
-#### Scenario: Complete a valid request without Python AI availability
+#### Scenario: Complete a valid request through Python gRPC
+- **WHEN** a client sends a valid new message while the Python AI service is available
+- **THEN** the Go API invokes the gRPC-backed AI implementation, persists the returned assistant response, and returns the persisted result
+
+#### Scenario: Python AI dependency is unavailable
 - **WHEN** a client sends a valid new message while the Python AI service is unavailable
-- **THEN** the Go API completes the request using its in-process Fake AI implementation and returns the persisted assistant response without making a gRPC call
+- **THEN** the Go API does not use an in-process fallback, returns a controlled AI-unavailable error, and its readiness endpoint reports the Python dependency as not ready
 
 ### Requirement: Bounded conversation context
 Before requesting an assistant completion, the Go chat application SHALL construct context from completed persisted text messages in ascending sequence order. It MUST remove the oldest eligible messages until the configured context budget is met and MUST retain the current user message in the resulting context.
@@ -79,11 +83,15 @@ The Go chat application SHALL refresh an active session's last-message and updat
 - **THEN** the session refreshes its timestamps without changing its existing title
 
 ### Requirement: Consistent request identity and error envelope
-Every Go chat API response that includes a JSON error SHALL use `{request_id, error: {code, message}}`, and the response header `X-Request-ID` SHALL contain the same request identity generated or accepted by existing middleware. Missing or invalid anonymous-client identity MUST be reported as `400 INVALID_ARGUMENT`; unexpected application failures MUST be reported as `500 INTERNAL_ERROR` without exposing internal details.
+Every Go chat API response that includes a JSON error SHALL use `{request_id, error: {code, message}}`, and the response header `X-Request-ID` SHALL contain the same request identity generated or accepted by existing middleware. Missing or invalid anonymous-client identity MUST be reported as `400 INVALID_ARGUMENT`; AI-service unavailability or provider failure MUST be reported as `502 AI_UNAVAILABLE` or `AI_PROVIDER_ERROR`; AI timeout MUST be reported as `504 AI_TIMEOUT`; unexpected application failures MUST be reported as `500 INTERNAL_ERROR` without exposing internal details.
 
 #### Scenario: Return a traceable validation error
 - **WHEN** a chat API request has a missing or invalid `X-Client-ID`
 - **THEN** the API returns `400` with `INVALID_ARGUMENT`, an error envelope containing `request_id`, and a matching `X-Request-ID` response header
+
+#### Scenario: Return a traceable AI timeout
+- **WHEN** the configured Python AI completion exceeds its deadline
+- **THEN** the API returns `504` with `AI_TIMEOUT`, an error envelope containing `request_id`, and a matching `X-Request-ID` response header
 
 #### Scenario: Contain an unexpected internal failure
 - **WHEN** an unexpected persistence or application failure occurs before a response is written
