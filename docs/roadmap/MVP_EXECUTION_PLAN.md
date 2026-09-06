@@ -225,24 +225,26 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 
 ## 8. 阶段 4：Python AI 服务
 
+> ✅ 已完成（2026-09-06）。Python `ChatService.Complete` 已支持 Fake 与 HY3 OpenAI-compatible Provider 切换、模型/参数校验、Provider 超时、错误分类、模型名称与 token usage 返回；流式 RPC 继续作为 proto 预留，未纳入 MVP。
+
 ### 目标
 
 实现 Python gRPC ChatService，并统一不同模型 Provider 的调用方式。
 
 ### 任务
 
-- [ ] 实现 `ChatService.Complete`；
+- [x] 实现 `ChatService.Complete`；
 - [ ] 为流式能力实现 proto 预留，不要求 MVP 移动端使用；
-- [ ] 实现 Provider 抽象；
-- [ ] 实现 Fake Provider；
-- [ ] 实现 OpenAI Compatible Provider；
+- [x] 实现 Provider 抽象；
+- [x] 实现 Fake Provider；
+- [x] 实现 OpenAI Compatible HY3 Provider；
 - [ ] 可选实现 Ollama Provider；
-- [ ] 实现模型 profile 选择；
-- [ ] 实现模型参数校验；
-- [ ] 实现超时；
-- [ ] 实现 Provider 错误转换；
-- [ ] 返回模型名称和 token usage；
-- [ ] 记录 AI 调用耗时。
+- [x] 实现模型 profile 选择；
+- [x] 实现模型参数校验；
+- [x] 实现超时；
+- [x] 实现 Provider 错误转换；
+- [x] 返回模型名称和 token usage；
+- [x] 记录 AI 调用耗时。
 
 ### 预留能力
 
@@ -260,22 +262,24 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 
 ## 9. 阶段 5：Go–Python gRPC 联调
 
+> ✅ 已完成（2026-09-06）。Go 生产组合根已用 gRPC Completer 替换进程内 Fake，支持长连接 keepalive、消息大小上限、单次 RPC deadline、request_id 透传、取消传播和 gRPC 状态映射；Python gRPC 已恢复为 `/readyz` 必要依赖。
+
 ### 目标
 
 用真实 gRPC Client 替换 Go 的 Fake AI Client。
 
 ### 任务
 
-- [ ] Go 建立可复用 gRPC 长连接；
-- [ ] 设置 keepalive；
-- [ ] 每次调用设置 context timeout；
-- [ ] 透传 request_id 和 trace_id；
-- [ ] 将 gRPC status 转换成业务错误；
-- [ ] 设置消息大小上限；
-- [ ] 支持客户端取消；
+- [x] Go 建立可复用 gRPC 长连接；
+- [x] 设置 keepalive；
+- [x] 每次调用设置 context timeout；
+- [x] 透传 request_id（trace_id 继续预留）；
+- [x] 将 gRPC status 转换成业务错误；
+- [x] 设置消息大小上限；
+- [x] 支持客户端取消；
 - [ ] 不对所有模型请求进行无脑重试；
 - [ ] 使用幂等机制解决网络重试问题；
-- [ ] 验证 Python 服务重启、超时和不可用场景。
+- [x] 验证 Python 服务不可用和超时的单元测试映射；真实 HY3 REST smoke 见本变更验收记录。
 
 ### 验收标准
 
