@@ -34,6 +34,12 @@ var (
 	ErrDuplicateRequest = errors.New("duplicate chat request")
 	// ErrAICompletion 表示已配置的 AI 完成器调用失败。
 	ErrAICompletion = errors.New("ai completion failed")
+	// ErrAIUnavailable 表示 Python AI 服务或链路不可用。
+	ErrAIUnavailable = errors.New("ai unavailable")
+	// ErrAIProvider 表示已到达 AI 服务但 Provider 调用失败。
+	ErrAIProvider = errors.New("ai provider error")
+	// ErrAITimeout 表示 AI 调用超过 deadline。
+	ErrAITimeout = errors.New("ai timeout")
 )
 
 // Completer 是生成助手消息的可替换边界。
@@ -269,7 +275,7 @@ func (s *Service) SendMessage(ctx context.Context, input SendMessageInput) (Send
 		Messages: boundedContext(persisted, userMessage.ID),
 	})
 	if err != nil {
-		return SendMessageResult{}, fmt.Errorf("%w: %v", ErrAICompletion, err)
+		return SendMessageResult{}, fmt.Errorf("%w: %w", ErrAICompletion, err)
 	}
 	if strings.TrimSpace(completion.Content) == "" {
 		return SendMessageResult{}, fmt.Errorf("%w: empty response", ErrAICompletion)

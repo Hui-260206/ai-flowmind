@@ -124,6 +124,12 @@ func writeChatError(c *gin.Context, err error) {
 		middleware.ErrorResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", "session not found")
 	case errors.Is(err, chat.ErrDuplicateRequest):
 		middleware.ErrorResponse(c, http.StatusConflict, "DUPLICATE_REQUEST", "duplicate client message ID")
+	case errors.Is(err, chat.ErrAITimeout):
+		middleware.ErrorResponse(c, http.StatusGatewayTimeout, "AI_TIMEOUT", "AI service timed out")
+	case errors.Is(err, chat.ErrAIUnavailable):
+		middleware.ErrorResponse(c, http.StatusBadGateway, "AI_UNAVAILABLE", "AI service is unavailable")
+	case errors.Is(err, chat.ErrAIProvider):
+		middleware.ErrorResponse(c, http.StatusBadGateway, "AI_PROVIDER_ERROR", "AI provider error")
 	case errors.Is(err, chat.ErrAICompletion):
 		middleware.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "unable to complete chat message")
 	default:

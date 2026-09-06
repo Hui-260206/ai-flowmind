@@ -41,6 +41,8 @@ func TestLoadDurations(t *testing.T) {
 	t.Setenv("GO_READ_TIMEOUT", "4s")
 	t.Setenv("GO_WRITE_TIMEOUT", "5s")
 	t.Setenv("GO_IDLE_TIMEOUT", "1m")
+	t.Setenv("AI_PROVIDER_TIMEOUT", "3")
+	t.Setenv("AI_GRPC_TIMEOUT", "4s")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -98,12 +100,16 @@ func TestLoadGRPCConfig(t *testing.T) {
 	t.Setenv("GO_HTTP_ADDR", ":8080")
 	t.Setenv("AI_GRPC_ADDR", "ai-service:50051")
 	t.Setenv("AI_GRPC_TIMEOUT", "30s")
+	t.Setenv("GO_WRITE_TIMEOUT", "31s")
+	t.Setenv("AI_GRPC_KEEPALIVE_TIME", "45s")
+	t.Setenv("AI_GRPC_KEEPALIVE_TIMEOUT", "6s")
+	t.Setenv("AI_GRPC_MAX_MESSAGE_BYTES", "2097152")
 
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.GRPC.Addr != "ai-service:50051" || cfg.GRPC.Timeout != 30*time.Second {
+	if cfg.GRPC.Addr != "ai-service:50051" || cfg.GRPC.Timeout != 30*time.Second || cfg.GRPC.KeepaliveTime != 45*time.Second || cfg.GRPC.KeepaliveTimeout != 6*time.Second || cfg.GRPC.MaxMessageBytes != 2097152 {
 		t.Fatalf("unexpected gRPC config: %+v", cfg.GRPC)
 	}
 }
@@ -116,7 +122,24 @@ func TestLoadGRPCDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.GRPC.Addr != "127.0.0.1:50051" || cfg.GRPC.Timeout != 15*time.Second {
+	if cfg.GRPC.Addr != "127.0.0.1:50051" || cfg.GRPC.Timeout != 14*time.Second || cfg.GRPC.MaxMessageBytes != 1<<20 {
 		t.Fatalf("unexpected gRPC defaults: %+v", cfg.GRPC)
+	}
+}
+
+func TestLoadRejectsInvalidAITimeoutBudget(t *testing.T) {
+	setMySQLTestEnv(t)
+	t.Setenv("GO_HTTP_ADDR", ":8080")
+	t.Setenv("AI_PROVIDER_TIMEOUT", "5")
+	t.Setenv("AI_GRPC_TIMEOUT", "5s")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected an error when provider timeout reaches gRPC timeout")
+	}
+
+	t.Setenv("AI_PROVIDER_TIMEOUT", "3")
+	t.Setenv("AI_GRPC_TIMEOUT", "5s")
+	t.Setenv("GO_WRITE_TIMEOUT", "5s")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected an error when gRPC timeout reaches write timeout")
 	}
 }

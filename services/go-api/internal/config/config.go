@@ -16,7 +16,10 @@ const (
 	defaultReadTimeout       = 15 * time.Second
 	defaultWriteTimeout      = 15 * time.Second
 	defaultIdleTimeout       = 60 * time.Second
-	defaultGRPCTimeout       = 15 * time.Second
+	defaultGRPCTimeout       = 14 * time.Second
+	defaultGRPCKeepaliveTime = 30 * time.Second
+	defaultGRPCKeepaliveTO   = 10 * time.Second
+	defaultGRPCMessageBytes  = 1 << 20
 )
 
 // Config 保存 API 及其依赖共享的配置。
@@ -62,8 +65,11 @@ type RedisConfig struct {
 }
 
 type GRPCConfig struct {
-	Addr    string
-	Timeout time.Duration
+	Addr             string
+	Timeout          time.Duration
+	KeepaliveTime    time.Duration
+	KeepaliveTimeout time.Duration
+	MaxMessageBytes  int
 }
 
 // Load 从环境变量读取服务配置。
@@ -113,6 +119,13 @@ func Load() (Config, error) {
 	}
 	grpcCfg, err := loadGRPCConfig()
 	if err != nil {
+		return Config{}, err
+	}
+	providerTimeout, err := loadSecondsDuration("AI_PROVIDER_TIMEOUT", 12*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	if err := validateAITimeoutBudget(providerTimeout, grpcCfg.Timeout, writeTimeout); err != nil {
 		return Config{}, err
 	}
 
@@ -190,7 +203,22 @@ func loadGRPCConfig() (GRPCConfig, error) {
 	if err != nil {
 		return GRPCConfig{}, err
 	}
-	return GRPCConfig{Addr: addr, Timeout: timeout}, nil
+	keepaliveTime, err := loadDuration("AI_GRPC_KEEPALIVE_TIME", defaultGRPCKeepaliveTime)
+	if err != nil {
+		return GRPCConfig{}, err
+	}
+	keepaliveTimeout, err := loadDuration("AI_GRPC_KEEPALIVE_TIMEOUT", defaultGRPCKeepaliveTO)
+	if err != nil {
+		return GRPCConfig{}, err
+	}
+	maxMessageBytes, err := loadInt("AI_GRPC_MAX_MESSAGE_BYTES", defaultGRPCMessageBytes, 1, 16<<20)
+	if err != nil {
+		return GRPCConfig{}, err
+	}
+	return GRPCConfig{
+		Addr: addr, Timeout: timeout, KeepaliveTime: keepaliveTime,
+		KeepaliveTimeout: keepaliveTimeout, MaxMessageBytes: maxMessageBytes,
+	}, nil
 }
 
 func loadRedisConfig() (RedisConfig, error) {
@@ -241,6 +269,30 @@ func loadDuration(name string, fallback time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("invalid %s %q: must be a positive duration", name, value)
 	}
 	return duration, nil
+}
+
+// loadSecondsDuration 读取 Python AI 服务使用的纯秒数配置。Go 只使用该非敏感
+// 预算值验证跨服务 deadline 的顺序，不读取 Provider 地址、模型或密钥。
+func loadSecondsDuration(name string, fallback time.Duration) (time.Duration, error) {
+	value, ok := os.LookupEnv(name)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+	seconds, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil || seconds <= 0 {
+		return 0, fmt.Errorf("invalid %s %q: must be a positive number of seconds", name, value)
+	}
+	return time.Duration(seconds * float64(time.Second)), nil
+}
+
+func validateAITimeoutBudget(provider, grpcTimeout, writeTimeout time.Duration) error {
+	if provider >= grpcTimeout {
+		return fmt.Errorf("AI_PROVIDER_TIMEOUT must be less than AI_GRPC_TIMEOUT")
+	}
+	if grpcTimeout >= writeTimeout {
+		return fmt.Errorf("AI_GRPC_TIMEOUT must be less than GO_WRITE_TIMEOUT")
+	}
+	return nil
 }
 
 func validateHTTPAddr(addr string) error {

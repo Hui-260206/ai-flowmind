@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 // Client 封装 gRPC 连接与 ChatService stub。
@@ -23,7 +24,30 @@ type Client struct {
 
 // Open 创建懒连接的 gRPC 客户端：不主动拨号，连接在首次就绪检查或 RPC 时建立。
 func Open(cfg config.GRPCConfig) (*Client, error) {
-	conn, err := grpc.NewClient(cfg.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 单元测试和嵌入式调用可直接构造最小配置；生产配置由 config.Load 校验。
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = 15 * time.Second
+	}
+	if cfg.KeepaliveTime <= 0 {
+		cfg.KeepaliveTime = 30 * time.Second
+	}
+	if cfg.KeepaliveTimeout <= 0 {
+		cfg.KeepaliveTimeout = 10 * time.Second
+	}
+	if cfg.MaxMessageBytes <= 0 {
+		cfg.MaxMessageBytes = 1 << 20
+	}
+	conn, err := grpc.NewClient(
+		cfg.Addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: cfg.KeepaliveTime, Timeout: cfg.KeepaliveTimeout,
+		}),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(cfg.MaxMessageBytes),
+			grpc.MaxCallRecvMsgSize(cfg.MaxMessageBytes),
+		),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create grpc client: %w", err)
 	}
@@ -62,7 +86,9 @@ func (c *Client) Check(ctx context.Context) error {
 
 // Complete 对 AI 服务发起一次聊天补全请求。
 func (c *Client) Complete(ctx context.Context, req *pb.CompleteRequest) (*pb.CompleteResponse, error) {
-	return c.chat.Complete(ctx, req)
+	rpcCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	return c.chat.Complete(rpcCtx, req)
 }
 
 // Close 关闭底层 gRPC 连接。

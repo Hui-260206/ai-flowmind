@@ -7,6 +7,8 @@ import (
 	"strings"
 	"unicode"
 
+	"ai-flowmind/services/go-api/internal/requestid"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,6 +22,7 @@ func RequestID() gin.HandlerFunc {
 			requestID = newRequestID()
 		}
 		c.Set(requestIDKey, requestID)
+		c.Request = c.Request.WithContext(requestid.WithContext(c.Request.Context(), requestID))
 		c.Header("X-Request-ID", requestID)
 		c.Next()
 	}

@@ -62,10 +62,15 @@ func main() {
 			logger.Error("close grpc client failed", "error", err)
 		}
 	}()
+	completer, err := chat.NewGRPCCompleter(grpcClient)
+	if err != nil {
+		logger.Error("create grpc chat completer failed", "error", err)
+		os.Exit(1)
+	}
 	chatService, err := chat.New(chat.Dependencies{
 		Sessions:  repository.NewSessionRepository(db.DB()),
 		Messages:  repository.NewMessageRepository(db.DB()),
-		Completer: chat.FakeCompleter{},
+		Completer: completer,
 		Now:       time.Now,
 		NewID:     chat.NewID,
 	})
@@ -74,10 +79,11 @@ func main() {
 		os.Exit(1)
 	}
 	apiServer := httpserver.New(cfg.HTTP, logger, httpserver.Dependencies{
-		MySQL:      db.Check,
-		Redis:      cache.Check,
-		PythonGRPC: grpcClient.Check,
-		Chat:       chatService,
+		MySQL:             db.Check,
+		Redis:             cache.Check,
+		PythonGRPC:        grpcClient.Check,
+		RequirePythonGRPC: true,
+		Chat:              chatService,
 	})
 
 	serverErrors := make(chan error, 1)
