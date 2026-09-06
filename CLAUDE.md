@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `go-api/`：Go 实现的 REST/gRPC 服务，移动端唯一对外 API，负责会话/消息业务、匿名设备隔离、MySQL 持久化、上下文控制、Redis（幂等/锁/限流）、调用 Python gRPC。
   - `ai-service/`：Python + FastAPI 的 AI 服务，负责模型调用、Provider 适配、参数校验、AI 错误转换，经 gRPC 被 Go 调用；模型密钥仅此侧保存、不对公网暴露。
   - 依赖 **MySQL**（事实来源）、**Redis**（幂等/锁/限流）；MVP 不引入消息队列，RabbitMQ 仅作为未来异步扩展选项。
-  - 完整设计见 `docs/phase-0/MVP_REQUIREMENTS.md`、`docs/roadmap/MVP_EXECUTION_PLAN.md` 和 [`docs/README.md`](docs/README.md)。
+  - 完整设计见 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](docs/roadmap/MVP_EXECUTION_PLAN.md) 和 [`docs/README.md`](docs/README.md)。
 
 Kotlin 包名 `com.heli.flowmind`；Kuikly 运行时 `2.7.0-2.1.21`，定义在 `mobile/buildSrc/.../KotlinBuildVar.kt`（`Version`/`BuildPlugin`），改版本只改这里。
 

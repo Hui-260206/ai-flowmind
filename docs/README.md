@@ -1,45 +1,17 @@
 # FlowMind 文档中心
 
-文档以开发阶段作为第一层分类。跨阶段的总体路线图单独放在 `roadmap/`；阶段内的需求、契约、API、实现计划和运维说明放在对应 `phase-*` 目录中。
+服务端的开发进度、阶段设计、关键决策与验收结果统一记录在跨阶段路线图 `roadmap/` 中。曾按阶段拆分的 `phase-*` 设计文档已完成使命并被移除；当前实现的权威来源是代码（`services/`）、路线图与需求契约。
 
-## 阶段 0：接口与边界设计
+## 路线图
 
-- [MVP 需求说明](./phase-0/MVP_REQUIREMENTS.md)：产品范围、系统边界、核心用例和验收标准。
-- [阶段 0 契约约定](./phase-0/PHASE_0_CONTRACTS.md)：匿名身份、消息、错误码、Redis Key 和事件边界。
-- [OpenAPI](./phase-0/api/openapi.yaml)：Go API 对外 REST/JSON 契约。
-- `services/proto/`：Go API 与 Python AI 之间的 gRPC protobuf 契约源文件。
-
-## 阶段 1：服务端基础工程
-
-- [阶段 1 总计划](./phase-1/PHASE_1_PLAN.md)：阶段 1.0–1.13 的拆分、任务和验收标准。
-- [阶段 1.0 技术边界](./phase-1/PHASE_1_0_DECISIONS.md)：技术版本、拓扑、端口、配置和健康检查语义。
-- [阶段 1.2 Mac 本地数据库环境](./phase-1/PHASE_1_2_OPERATIONS.md)：本机 MySQL/Redis 安装、配置、备份、恢复以及后续 Docker 迁移。
-- [阶段 1.8 Python 运行时](./phase-1/PHASE_1_8_PYTHON_RUNTIME.md)：AI 服务项目结构、配置、结构化日志与 gRPC 生命周期脚手架。
-- [阶段 1.9 Python gRPC 服务](./phase-1/PHASE_1_9_PYTHON_GRPC.md)：ChatProvider 抽象、FakeProvider 与 ChatService 的最小联通。
-- [阶段 1.10 Go–Python gRPC 联通](./phase-1/PHASE_1_10_GOPYTHON_GRPC.md)：Go 生成 protobuf 代码、gRPC Client 与 `/readyz` 集成。
-
-## 阶段 2：数据库和领域模型
-
-- [阶段 2 计划](./phase-2/PHASE_2_PLAN.md)：MySQL migration、领域模型与 Repository 的实现计划、DDL 草稿与关键设计决策。
-
-## 跨阶段路线图
-
-- [MVP 执行计划](./roadmap/MVP_EXECUTION_PLAN.md)：从阶段 0 到阶段 12 的总体路线图。
+- [MVP 执行计划](./roadmap/MVP_EXECUTION_PLAN.md)：从阶段 0 到阶段 12 的总体路线图，含各阶段目标、任务、验收标准、关键设计决策与进度标注。
 
 ## 推荐阅读顺序
 
 ```text
 roadmap/MVP_EXECUTION_PLAN.md
         ↓
-phase-0/MVP_REQUIREMENTS.md
-        ↓
-phase-0/PHASE_0_CONTRACTS.md + phase-0/api/openapi.yaml
-        ↓
-phase-1/PHASE_1_PLAN.md
-        ↓
-phase-1/PHASE_1_0_DECISIONS.md
-        ↓
-phase-1/PHASE_1_2_OPERATIONS.md
+services/（代码即真相：go-api、ai-service、proto）
 ```
 
 ## 当前重要决策

@@ -24,9 +24,8 @@ ai-flowmind/
 │   ├── docker-compose.yml
 │   └── Makefile
 ├── docs/
-│   ├── phase-0/              # 阶段 0：需求、契约、API
-│   ├── phase-1/              # 阶段 1：服务端基础工程
-│   └── roadmap/              # 本文件
+│   ├── README.md             # 文档中心
+│   └── roadmap/              # 本文件（服务端阶段进度与设计唯一文档）
 └── CLAUDE.md
 ```
 
@@ -62,7 +61,7 @@ ai-flowmind/
 - [x] 创建 `agent.proto`；
 - [x] 创建 `vision.proto`；
 - [x] 创建 `tool.proto`；
-- [x] 创建 `docs/phase-0/api/openapi.yaml`；
+- [x] 确定 REST API 契约（请求/响应示例并入本文件各阶段验收与 `services/` 代码注释；OpenAPI 独立文件已随 `docs/phase-*` 清理移除）；
 - [x] 确定 `owner_key`、`client_id` 和未来 `user_id` 的关系；
 - [x] 确定消息角色：`system`、`user`、`assistant`、`tool`；
 - [x] 确定消息状态：`pending`、`completed`、`failed`；
@@ -142,7 +141,7 @@ Go 成功连接 MySQL、Redis 和 Python gRPC
 - [x] 创建 `chat_sessions` migration；
 - [x] 创建 `chat_messages` migration；
 - [x] 创建 `outbox_events` migration；
-- [x] 预留 `ai_runs` 模型或 migration（决策：先不建表，见 `docs/phase-2/PHASE_2_PLAN.md`）；
+- [x] 预留 `ai_runs` 模型或 migration（决策：先不建表，后续接入模型运行时再评估）；
 - [x] 增加 `session_id + seq` 索引；
 - [x] 增加 `owner_key + updated_at` 索引；
 - [x] 增加 `session_id + created_at` 索引；
