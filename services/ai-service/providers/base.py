@@ -9,12 +9,37 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import StrEnum
 
 from ai.v1 import common_pb2
 
 
+class ProviderErrorKind(StrEnum):
+    """Provider 故障的稳定分类，不携带上游服务的敏感细节。"""
+
+    CONFIGURATION = "configuration"
+    UNAVAILABLE = "unavailable"
+    TIMEOUT = "timeout"
+    RESPONSE = "response"
+
+
 class ProviderError(Exception):
-    """Provider 调用失败。ChatService 会将其转换为 gRPC INTERNAL。"""
+    """Provider 调用失败；ChatService 根据 ``kind`` 映射 gRPC 状态。"""
+
+    def __init__(self, kind: ProviderErrorKind, message: str) -> None:
+        super().__init__(message)
+        self.kind = kind
+
+
+@dataclass(frozen=True)
+class ProviderResult:
+    """一次模型补全的、与具体 Provider 无关的结果。"""
+
+    message: common_pb2.ChatMessage
+    model_name: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
 
 
 class ChatProvider(ABC):
@@ -29,5 +54,5 @@ class ChatProvider(ABC):
         messages: Sequence[common_pb2.ChatMessage],
         max_output_tokens: int,
         temperature: float,
-    ) -> common_pb2.ChatMessage:
+    ) -> ProviderResult:
         """返回助手回复消息。"""

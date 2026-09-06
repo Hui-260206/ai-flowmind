@@ -14,6 +14,8 @@ _ALL_ENV_VARS = (
     "AI_PROVIDER",
     "AI_PROVIDER_BASE_URL",
     "AI_PROVIDER_API_KEY",
+    "AI_MODEL",
+    "AI_PROVIDER_TIMEOUT",
     "MODEL_PROFILE",
 )
 
@@ -32,6 +34,8 @@ def test_defaults_when_no_environment():
     assert settings.provider == "fake"
     assert settings.provider_base_url == ""
     assert settings.provider_api_key == ""
+    assert settings.model_name == "hy3"
+    assert settings.provider_timeout_seconds == 12.0
     assert settings.model_profile == "default"
 
 
@@ -42,6 +46,23 @@ def test_reads_environment_variables(monkeypatch):
     settings = Settings()
     assert settings.grpc_listen_addr == "0.0.0.0:50051"
     assert settings.log_level == "debug"
+
+
+def test_reads_hy3_settings(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", " HY3 ")
+    monkeypatch.setenv("AI_PROVIDER_BASE_URL", "https://example.test/v1")
+    monkeypatch.setenv("AI_PROVIDER_API_KEY", "test-key")
+    monkeypatch.setenv("AI_MODEL", "hy3")
+    monkeypatch.setenv("AI_PROVIDER_TIMEOUT", "3.5")
+    settings = Settings()
+    assert settings.provider == "hy3"
+    assert settings.model_name == "hy3"
+    assert settings.provider_timeout_seconds == 3.5
+
+
+def test_normalizes_model_profile(monkeypatch):
+    monkeypatch.setenv("MODEL_PROFILE", " default ")
+    assert Settings().model_profile == "default"
 
 
 def test_ignores_unrelated_environment_variables(monkeypatch):
@@ -65,5 +86,11 @@ def test_rejects_addr_without_port(monkeypatch):
 
 def test_rejects_invalid_log_level(monkeypatch):
     monkeypatch.setenv("AI_LOG_LEVEL", "verbose")
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_rejects_provider_timeout_outside_http_budget(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER_TIMEOUT", "15")
     with pytest.raises(ValidationError):
         Settings()

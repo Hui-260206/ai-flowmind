@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,12 +25,12 @@ class Settings(BaseSettings):
 
     environment: str = Field(default="local", validation_alias="AI_ENV")
     log_level: str = Field(default="info", validation_alias="AI_LOG_LEVEL")
-    grpc_listen_addr: str = Field(
-        default="127.0.0.1:50051", validation_alias="AI_GRPC_LISTEN_ADDR"
-    )
-    provider: str = Field(default="fake", validation_alias="AI_PROVIDER")
+    grpc_listen_addr: str = Field(default="127.0.0.1:50051", validation_alias="AI_GRPC_LISTEN_ADDR")
+    provider: Literal["fake", "hy3"] = Field(default="fake", validation_alias="AI_PROVIDER")
     provider_base_url: str = Field(default="", validation_alias="AI_PROVIDER_BASE_URL")
     provider_api_key: str = Field(default="", validation_alias="AI_PROVIDER_API_KEY")
+    model_name: str = Field(default="hy3", validation_alias="AI_MODEL")
+    provider_timeout_seconds: float = Field(default=12.0, validation_alias="AI_PROVIDER_TIMEOUT")
     model_profile: str = Field(default="default", validation_alias="MODEL_PROFILE")
 
     @field_validator("log_level")
@@ -48,13 +50,25 @@ class Settings(BaseSettings):
         _validate_port(address)
         return address
 
-    @field_validator("provider")
+    @field_validator("provider", mode="before")
     @classmethod
     def _normalize_provider(cls, value: str) -> str:
-        provider = value.strip().lower()
-        if not provider:
-            raise ValueError("provider must not be empty")
-        return provider
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("model_name", "model_profile")
+    @classmethod
+    def _normalize_nonempty_value(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("value must not be empty")
+        return normalized
+
+    @field_validator("provider_timeout_seconds")
+    @classmethod
+    def _validate_provider_timeout(cls, value: float) -> float:
+        if value <= 0 or value >= 15:
+            raise ValueError("AI_PROVIDER_TIMEOUT must be greater than 0 and less than 15 seconds")
+        return value
 
 
 def _validate_port(address: str) -> None:

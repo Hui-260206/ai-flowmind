@@ -23,7 +23,9 @@ logger = logging.getLogger("flowmind.ai.grpc")
 def build_server(settings: Settings) -> grpc.aio.Server:
     """创建 aio server，注册 ChatService 并绑定监听地址。"""
     server = grpc.aio.server()
-    chat_service = ChatService(provider=build_provider(settings.provider))
+    chat_service = ChatService(
+        provider=build_provider(settings), model_profile=settings.model_profile
+    )
     chat_pb2_grpc.add_ChatServiceServicer_to_server(chat_service, server)
     port = server.add_insecure_port(settings.grpc_listen_addr)
     if port == 0:

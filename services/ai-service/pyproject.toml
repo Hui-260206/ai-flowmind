@@ -5,6 +5,7 @@ description = "Internal gRPC AI service for FlowMind"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "grpcio>=1.68,<2.0",
+  "httpx>=0.28,<1.0",
   "protobuf>=5.29,<6.0",
   "pydantic-settings>=2.6,<3.0",
 ]

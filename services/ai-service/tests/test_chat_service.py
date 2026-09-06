@@ -7,7 +7,7 @@ import pytest
 from ai.v1 import chat_pb2, common_pb2
 
 from app.chat_service import ChatService
-from providers.base import ChatProvider, ProviderError
+from providers.base import ChatProvider, ProviderError, ProviderErrorKind
 from providers.fake import FakeProvider
 
 
@@ -28,7 +28,14 @@ class _FailingProvider(ChatProvider):
     name = "failing"
 
     async def complete(self, *args, **kwargs):
-        raise ProviderError("boom")
+        raise ProviderError(ProviderErrorKind.RESPONSE, "boom")
+
+
+class _TimeoutProvider(ChatProvider):
+    name = "timeout"
+
+    async def complete(self, *args, **kwargs):
+        raise ProviderError(ProviderErrorKind.TIMEOUT, "timeout")
 
 
 def _complete_request(text: str) -> chat_pb2.CompleteRequest:
@@ -59,6 +66,14 @@ async def test_complete_converts_provider_error():
     with pytest.raises(_Aborted):
         await service.Complete(_complete_request("hello"), grpc_context)
     assert grpc_context.aborted == (grpc.StatusCode.INTERNAL, "AI provider error")
+
+
+async def test_complete_converts_provider_timeout():
+    service = ChatService(_TimeoutProvider())
+    grpc_context = _FakeGrpcContext()
+    with pytest.raises(_Aborted):
+        await service.Complete(_complete_request("hello"), grpc_context)
+    assert grpc_context.aborted == (grpc.StatusCode.DEADLINE_EXCEEDED, "AI provider timed out")
 
 
 async def test_complete_stream_unimplemented():

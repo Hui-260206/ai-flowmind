@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from ai.v1 import common_pb2
 
-from .base import ChatProvider
+from .base import ChatProvider, ProviderResult
 
 logger = logging.getLogger("flowmind.ai.provider.fake")
 
@@ -23,7 +23,7 @@ class FakeProvider(ChatProvider):
         messages: Sequence[common_pb2.ChatMessage],
         max_output_tokens: int,
         temperature: float,
-    ) -> common_pb2.ChatMessage:
+    ) -> ProviderResult:
         logger.info(
             "fake provider called model_profile=%s messages=%d max_output_tokens=%d temperature=%s",
             context.model_profile,
@@ -31,7 +31,7 @@ class FakeProvider(ChatProvider):
             max_output_tokens,
             temperature,
         )
-        return _assistant_message(_REPLY_TEXT)
+        return ProviderResult(message=_assistant_message(_REPLY_TEXT), model_name=self.name)
 
 
 def _assistant_message(text: str) -> common_pb2.ChatMessage:
