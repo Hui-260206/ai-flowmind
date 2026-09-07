@@ -1,39 +1,60 @@
 package com.heli.flowmind.data
 
-import com.heli.flowmind.model.Message
-
 /**
- * 与后端会话接口交互的抽象。
- * ViewModel 只依赖此接口，不关心是 mock 还是真实 HTTP。
+ * 移动端会话边界。调用方不感知 Go 之外的服务、HTTP 实现或 JSON 格式。
  */
 interface ChatRepository {
-    /**
-     * 发送当前会话历史，返回 assistant 的回复文本。
-     * 失败时抛 [ChatException]。
-     */
-    suspend fun sendChat(history: List<Message>): String
+    suspend fun createSession(): ChatSession
+    suspend fun listSessions(): List<ChatSession>
+    suspend fun getMessages(sessionId: String): List<ChatMessage>
+    suspend fun sendMessage(sessionId: String, content: String, clientMessageId: String): SendMessageResult
+    suspend fun deleteSession(sessionId: String)
 }
 
-// ---- 网络层 DTO（与后端 FastAPI 约定的 JSON 结构一一对应）----
-// 后端起来后，序列化/反序列化就用这些，避免在 ViewModel 里拼 JSON。
-data class ChatRequest(
-    val messages: List<ChatMessageDto>
+data class ChatSession(
+    val id: String,
+    val title: String,
+    val modelProfile: String,
+    val createdAt: String,
+    val updatedAt: String,
 )
 
-data class ChatMessageDto(
-    val role: String,      // "user" / "assistant"
-    val content: String
-) {
+/** The persisted representation returned by the Go API, not a transient UI bubble. */
+data class ChatMessage(
+    val id: String,
+    val role: String,
+    val content: String,
+    val status: String,
+    val clientMessageId: String? = null,
+    val modelName: String? = null,
+    val promptTokens: Int? = null,
+    val completionTokens: Int? = null,
+    val createdAt: String,
+)
+
+data class SendMessageResult(
+    val requestId: String,
+    val userMessage: ChatMessage,
+    val assistantMessage: ChatMessage,
+)
+
+data class ChatApiError(
+    val code: String,
+    val message: String,
+    val requestId: String? = null,
+)
+
+/** Stable error surface consumed by the ViewModel. */
+class ChatException(
+    val code: String,
+    override val message: String,
+    val httpStatus: Int? = null,
+    val requestId: String? = null,
+    cause: Throwable? = null,
+) : Exception(message, cause) {
     companion object {
-        fun fromMessage(m: Message) = ChatMessageDto(
-            role = if (m.role == com.heli.flowmind.model.MessageRole.USER) "user" else "assistant",
-            content = m.content,
-        )
+        const val TRANSPORT_ERROR = "TRANSPORT_ERROR"
+        const val MALFORMED_RESPONSE = "MALFORMED_RESPONSE"
+        const val INVALID_CLIENT_CONFIGURATION = "INVALID_CLIENT_CONFIGURATION"
     }
 }
-
-data class ChatResponse(
-    val reply: String
-)
-
-class ChatException(message: String, cause: Throwable? = null) : Exception(message, cause)

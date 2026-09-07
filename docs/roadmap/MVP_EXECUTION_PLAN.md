@@ -422,6 +422,8 @@ redis_lock_failed_total
 
 ## 13. 阶段 9：Kuikly 网络层接入
 
+> ✅ 已完成（2026-09-07）。移动端已具备以 Go REST 契约为准的会话 Repository、Kuikly `NetworkModule` 传输（含底层显式 `DELETE`）、跨端持久化匿名 `client_id`、请求关联、错误映射和平台 Base URL 注入。Go `/readyz` 已实测 MySQL、Redis、Python gRPC 就绪；HTTP 契约验证覆盖 `201` 创建、`200` 模型回复、按 `user,assistant` 顺序读取历史及带服务端 `request_id` 的 `400 INVALID_ARGUMENT`。Android 和 iOS 真机均已完成真实 HTTP smoke；iOS Debug 支持显式注入局域网 URL 和仅 Debug 的本地 HTTP ATS 许可，Release 继续要求 HTTPS。OpenHarmony 工具链当前不可用，尚未执行等效运行态验证。
+
 ### 目标
 
 让当前移动端通过 Repository 访问 Go API，不直接感知 Python 和内部基础设施。
@@ -435,18 +437,18 @@ redis_lock_failed_total
 
 ### 任务
 
-- [ ] 将 Repository 从 `sendChat(history)` 改为会话业务接口；
-- [ ] 增加 `createSession()`；
-- [ ] 增加 `listSessions()`；
-- [ ] 增加 `getMessages(sessionId)`；
-- [ ] 增加 `sendMessage(sessionId, content, clientMessageId)`；
-- [ ] 增加 `deleteSession(sessionId)`；
-- [ ] 使用 Kuikly `NetworkModule`；
-- [ ] 设置 JSON Content-Type；
-- [ ] 设置 `X-Client-ID`；
-- [ ] 设置 `X-Request-ID`；
-- [ ] 统一包装网络错误为 `ChatException` 或领域异常；
-- [ ] 配置不同平台的 API Base URL。
+- [x] 将 Repository 从 `sendChat(history)` 改为会话业务接口；
+- [x] 增加 `createSession()`；
+- [x] 增加 `listSessions()`；
+- [x] 增加 `getMessages(sessionId)`；
+- [x] 增加 `sendMessage(sessionId, content, clientMessageId)`；
+- [x] 增加 `deleteSession()`（底层请求设置 HTTP method 为 `DELETE`，接受 `204 No Content`）；
+- [x] 使用 Kuikly `NetworkModule`；
+- [x] 设置 JSON Content-Type；
+- [x] 设置 `X-Client-ID`；
+- [x] 设置 `X-Request-ID`；
+- [x] 统一包装网络错误为 `ChatException` 或领域异常；
+- [x] 配置不同平台的 API Base URL。
 
 Kuikly 网络 API 参考：
 
@@ -455,9 +457,9 @@ Kuikly 网络 API 参考：
 
 ### 验收标准
 
-- Mock Repository 和 Remote Repository 可以切换；
-- Android 和 iOS 都能发起真实 HTTP 请求；
-- HTTP 错误能转换成移动端可识别的状态。
+- [x] Mock Repository 和 Remote Repository 可以切换；
+- [x] Android 和 iOS 都能发起真实 HTTP 请求（2026-09-07：两端真机均实测会话创建 `201`、消息发送/模型回复 `200`）；
+- [x] HTTP 错误能转换成移动端可识别的状态。
 
 ## 14. 阶段 10：移动端会话和历史
 

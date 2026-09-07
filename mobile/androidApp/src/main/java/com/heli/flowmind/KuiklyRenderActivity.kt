@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -92,12 +93,17 @@ class KuiklyRenderActivity : AppCompatActivity(), KuiklyRenderViewBaseDelegatorD
     private fun createPageData(): Map<String, Any> {
         val param = argsToMap()
         param["appId"] = 1
+        if (!param.containsKey(CHAT_API_BASE_URL) && BuildConfig.CHAT_API_BASE_URL.isNotBlank()) {
+            param[CHAT_API_BASE_URL] = BuildConfig.CHAT_API_BASE_URL
+            param[CHAT_API_PRODUCTION] = BuildConfig.CHAT_API_PRODUCTION
+        }
         return param
     }
 
     private fun argsToMap(): MutableMap<String, Any> {
-        val jsonStr = intent.getStringExtra(KEY_PAGE_DATA) ?: return mutableMapOf()
-        return JSONObject(jsonStr).toMap()
+        val pageData = intent.getStringExtra(KEY_PAGE_DATA)?.trim().orEmpty()
+        if (pageData.isEmpty()) return mutableMapOf()
+        return runCatching { JSONObject(pageData).toMap() }.getOrElse { mutableMapOf() }
     }
 
     private fun setupImmersiveMode() {
@@ -116,7 +122,8 @@ class KuiklyRenderActivity : AppCompatActivity(), KuiklyRenderViewBaseDelegatorD
 
         private const val KEY_PAGE_NAME = "pageName"
         private const val KEY_PAGE_DATA = "pageData"
-
+        private const val CHAT_API_BASE_URL = "chatApiBaseUrl"
+        private const val CHAT_API_PRODUCTION = "chatApiProduction"
         init {
             initKuiklyAdapter()
         }

@@ -34,6 +34,7 @@ class SessionViewModel(
         val text = inputText.trim()
         if (text.isEmpty()) return
 
+        if (isLoading) return
         val now = Clock.System.now().toEpochMilliseconds()
         val userMsg = Message(
             id = now.toString(),
@@ -44,7 +45,6 @@ class SessionViewModel(
         )
         messages.add(userMsg)
         inputText = ""
-        if(isLoading) return
         isLoading = true
 
         viewModelScope.launch {
@@ -62,9 +62,12 @@ class SessionViewModel(
             val replyIndex = messages.lastIndex
 
             try {
-                val reply = repository.sendChat(messages.dropLast(1)) // 不带占位发过去
+                // Phase 10 owns session selection and retry IDs. The phase-9 mock remains
+                // usable by creating a transient session for this legacy single-page flow.
+                val session = repository.createSession()
+                val result = repository.sendMessage(session.id, text, "legacy-$now")
                 messages[replyIndex] = messages[replyIndex].copy(
-                    content = reply,
+                    content = result.assistantMessage.content,
                     status = MessageStatus.SENT,
                 )
             } catch (e: ChatException) {

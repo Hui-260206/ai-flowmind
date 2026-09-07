@@ -15,8 +15,22 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            buildConfigField(
+                "String",
+                "CHAT_API_BASE_URL",
+                "\"${providers.gradleProperty("flowmind.chatApiBaseUrl").orElse("").get()}\"",
+            )
+            buildConfigField("boolean", "CHAT_API_PRODUCTION", "false")
+        }
         getByName("release") {
             isMinifyEnabled = false
+            buildConfigField(
+                "String",
+                "CHAT_API_BASE_URL",
+                "\"${providers.gradleProperty("flowmind.chatApiBaseUrl").orElse("").get()}\"",
+            )
+            buildConfigField("boolean", "CHAT_API_PRODUCTION", "true")
         }
     }
     compileOptions {
@@ -25,6 +39,9 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+    }
+    buildFeatures {
+        buildConfig = true
     }
 }
 

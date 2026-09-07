@@ -11,6 +11,10 @@ import com.heli.flowmind.base.offset
 import com.heli.flowmind.component.SessionHeader
 import com.heli.flowmind.component.SessionInputBar
 import com.heli.flowmind.component.SessionMessageList
+import com.heli.flowmind.data.ChatApiConfig
+import com.heli.flowmind.data.ChatRepository
+import com.heli.flowmind.data.ChatRepositoryFactory
+import com.heli.flowmind.data.ChatRepositoryProvider
 import com.heli.flowmind.state.SessionViewModel
 import com.tencent.kuikly.compose.animation.core.animateDpAsState
 import com.tencent.kuikly.compose.foundation.gestures.detectTapGestures
@@ -33,13 +37,34 @@ import com.tencent.kuikly.lifecycle.viewmodel.compose.viewModel
 
 @Page("flowmind_session_page", supportInLocal = true)
 class SessionPage : BasePage() {
-
     override fun willInit() {
         super.willInit()
         setContent {
-            val viewModel = viewModel { SessionViewModel() }
+            // Pager invokes willInit before it initializes its built-in modules.
+            // Build the remote repository during first composition instead, after
+            // NetworkModule and SharedPreferencesModule are available.
+            val repository = remember { createRepository() }
+            val viewModel = viewModel { SessionViewModel(repository) }
             SessionScreen(viewModel = viewModel)
         }
+    }
+
+    /**
+     * Native launchers opt into real networking by passing chatApiBaseUrl in page
+     * data. Omitting it keeps prototype/UI development deterministic on Mock.
+     */
+    private fun createRepository(): ChatRepository {
+        val params = pageData.params
+        val baseUrl = params.optString("chatApiBaseUrl").trim()
+        if (baseUrl.isEmpty()) return ChatRepositoryProvider.repository
+        return ChatRepositoryFactory.remote(
+            pager = this,
+            config = ChatApiConfig(
+                baseUrl = baseUrl,
+                timeoutSeconds = params.optInt("chatApiTimeoutSeconds", 30),
+                production = params.optBoolean("chatApiProduction"),
+            ),
+        )
     }
 }
 
