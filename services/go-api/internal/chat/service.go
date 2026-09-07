@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/model"
 	"ai-flowmind/services/go-api/internal/repository"
 )
@@ -123,6 +124,9 @@ type ListMessagesResult struct {
 type SendMessageResult struct {
 	UserMessage      model.Message
 	AssistantMessage model.Message
+	// Replayed is internal workflow metadata used for bounded operational
+	// metrics. It is intentionally not exposed by the REST response.
+	Replayed bool
 }
 
 // Dependencies 是聊天应用服务所需的协作依赖。
@@ -135,6 +139,7 @@ type Dependencies struct {
 	Reliability Reliability
 	Now         func() time.Time
 	NewID       func() string
+	Metrics     metrics.ChatMetrics
 }
 
 // Service 协调聊天用例；随着阶段 3 的任务推进，方法会逐步加入。
@@ -146,6 +151,7 @@ type Service struct {
 	reliability Reliability
 	now         func() time.Time
 	newID       func() string
+	metrics     metrics.ChatMetrics
 }
 
 // New 仅在所有协作边界均显式提供时创建聊天应用服务。这能避免生产代码悄然
@@ -168,6 +174,10 @@ func New(deps Dependencies) (*Service, error) {
 		return nil, fmt.Errorf("chat ID generator: %w", ErrInvalidArgument)
 	}
 
+	collector := deps.Metrics
+	if collector == nil {
+		collector = metrics.Noop()
+	}
 	return &Service{
 		sessions:    deps.Sessions,
 		messages:    deps.Messages,
@@ -176,6 +186,7 @@ func New(deps Dependencies) (*Service, error) {
 		reliability: deps.Reliability,
 		now:         deps.Now,
 		newID:       deps.NewID,
+		metrics:     collector,
 	}, nil
 }
 
@@ -370,6 +381,7 @@ func (s *Service) SendMessage(ctx context.Context, input SendMessageInput) (resu
 				return SendMessageResult{}, fmt.Errorf("generate user message ID")
 			}
 			if _, err := s.messages.AppendMessage(ctx, &userMessage); err != nil {
+				s.metrics.IncMessagePersistFailure("user")
 				if errors.Is(err, repository.ErrDuplicateClientMessageID) {
 					return SendMessageResult{}, ErrDuplicateRequest
 				}
@@ -434,6 +446,7 @@ func (s *Service) SendMessage(ctx context.Context, input SendMessageInput) (resu
 		return SendMessageResult{}, s.failAfterUser(ctx, claim, operation, fmt.Errorf("generate assistant message ID"))
 	}
 	if _, err := s.messages.AppendMessage(ctx, &assistantMessage); err != nil {
+		s.metrics.IncMessagePersistFailure("assistant")
 		return SendMessageResult{}, s.failAfterUser(ctx, claim, operation, mapRepositoryError(err, "append assistant message"))
 	}
 	if err := s.operations.SetAssistantMessage(ctx, ownerKey, sessionID, clientMessageID, assistantMessage.ID); err != nil {
@@ -476,7 +489,7 @@ func (s *Service) replayCompleted(ctx context.Context, sessionID string, claim I
 	if user.Role != model.RoleUser || assistant.Role != model.RoleAssistant {
 		return SendMessageResult{}, fmt.Errorf("invalid completed idempotency record: %w", ErrRedisUnavailable)
 	}
-	return SendMessageResult{UserMessage: user, AssistantMessage: assistant}, nil
+	return SendMessageResult{UserMessage: user, AssistantMessage: assistant, Replayed: true}, nil
 }
 
 func (s *Service) messageByID(ctx context.Context, sessionID, id string) (model.Message, error) {

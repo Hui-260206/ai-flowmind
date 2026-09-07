@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.docker.example
+**/.DS_Store
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.venv/
+**/gen/
+**/bin/
+**/coverage.out
+**/*.test

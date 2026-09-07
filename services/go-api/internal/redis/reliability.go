@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"ai-flowmind/services/go-api/internal/chat"
+	"ai-flowmind/services/go-api/internal/metrics"
 )
 
 const (
@@ -76,13 +77,18 @@ type ReliabilityAdapter struct {
 	idempotencyTTL time.Duration
 	lockTTL        time.Duration
 	ownerLimit     int
+	metrics        metrics.ChatMetrics
 }
 
-func NewReliabilityAdapter(client *Client, idempotencyTTL, lockTTL time.Duration, ownerLimit int) (*ReliabilityAdapter, error) {
+func NewReliabilityAdapter(client *Client, idempotencyTTL, lockTTL time.Duration, ownerLimit int, configured ...metrics.ChatMetrics) (*ReliabilityAdapter, error) {
 	if client == nil || client.Client() == nil || idempotencyTTL <= 0 || lockTTL <= 0 || ownerLimit < 1 {
 		return nil, fmt.Errorf("invalid Redis reliability configuration")
 	}
-	return &ReliabilityAdapter{client: client, idempotencyTTL: idempotencyTTL, lockTTL: lockTTL, ownerLimit: ownerLimit}, nil
+	collector := metrics.Noop()
+	if len(configured) > 0 && configured[0] != nil {
+		collector = configured[0]
+	}
+	return &ReliabilityAdapter{client: client, idempotencyTTL: idempotencyTTL, lockTTL: lockTTL, ownerLimit: ownerLimit, metrics: collector}, nil
 }
 
 func (a *ReliabilityAdapter) Claim(ctx context.Context, request chat.IdempotencyRequest) (chat.IdempotencyClaim, error) {
@@ -147,6 +153,7 @@ func (a *ReliabilityAdapter) AcquireSession(ctx context.Context, sessionID strin
 	}
 	ok, err := a.client.Client().SetNX(ctx, sessionLockKey(sessionID), token, a.lockTTL).Result()
 	if err != nil {
+		a.metrics.IncRedisLockFailure("acquire")
 		return chat.SessionLock{}, false, err
 	}
 	return chat.SessionLock{SessionID: sessionID, Token: token}, ok, nil
@@ -157,6 +164,9 @@ func (a *ReliabilityAdapter) ReleaseSession(ctx context.Context, lock chat.Sessi
 		return nil
 	}
 	_, err := a.client.Client().Eval(ctx, releaseLockScript, []string{sessionLockKey(lock.SessionID)}, lock.Token).Result()
+	if err != nil {
+		a.metrics.IncRedisLockFailure("release")
+	}
 	return err
 }
 

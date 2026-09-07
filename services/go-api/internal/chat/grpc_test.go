@@ -3,12 +3,17 @@ package chat
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	pb "ai-flowmind/services/go-api/internal/grpcclient/pb"
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/model"
 	"ai-flowmind/services/go-api/internal/requestid"
 
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -74,4 +79,32 @@ func TestGRPCCompleterClassifiesFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGRPCCompleterRecordsTimeoutMetric(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	collector := metrics.New(registry)
+	completer, _ := NewGRPCCompleter(&grpcClientStub{err: status.Error(codes.DeadlineExceeded, "deadline")}, collector)
+	_, err := completer.Complete(context.Background(), CompletionRequest{})
+	if !errors.Is(err, ErrAITimeout) {
+		t.Fatalf("Complete() error = %v", err)
+	}
+	var text strings.Builder
+	for _, family := range mustGather(t, registry) {
+		if _, err := expfmt.MetricFamilyToText(&text, family); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !strings.Contains(text.String(), "ai_timeout_total 1") || !strings.Contains(text.String(), `ai_grpc_latency_bucket{outcome="timeout"`) {
+		t.Fatalf("metrics = %s", text.String())
+	}
+}
+
+func mustGather(t *testing.T, registry *prometheus.Registry) []*dto.MetricFamily {
+	t.Helper()
+	metrics, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return metrics
 }

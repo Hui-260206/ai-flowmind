@@ -14,10 +14,13 @@ import (
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/grpcclient"
 	"ai-flowmind/services/go-api/internal/httpserver"
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/migrate"
 	"ai-flowmind/services/go-api/internal/mysql"
 	redisclient "ai-flowmind/services/go-api/internal/redis"
 	"ai-flowmind/services/go-api/internal/repository"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func main() {
@@ -62,12 +65,14 @@ func main() {
 			logger.Error("close grpc client failed", "error", err)
 		}
 	}()
-	completer, err := chat.NewGRPCCompleter(grpcClient)
+	metricsRegistry := prometheus.NewRegistry()
+	chatMetrics := metrics.New(metricsRegistry)
+	completer, err := chat.NewGRPCCompleter(grpcClient, chatMetrics)
 	if err != nil {
 		logger.Error("create grpc chat completer failed", "error", err)
 		os.Exit(1)
 	}
-	reliability, err := redisclient.NewReliabilityAdapter(cache, cfg.Redis.IdempotencyTTL, cfg.Redis.SessionLockTTL, cfg.Redis.OwnerRateLimitPerMinute)
+	reliability, err := redisclient.NewReliabilityAdapter(cache, cfg.Redis.IdempotencyTTL, cfg.Redis.SessionLockTTL, cfg.Redis.OwnerRateLimitPerMinute, chatMetrics)
 	if err != nil {
 		logger.Error("create Redis chat reliability adapter failed", "error", err)
 		os.Exit(1)
@@ -80,6 +85,7 @@ func main() {
 		Reliability: reliability,
 		Now:         time.Now,
 		NewID:       chat.NewID,
+		Metrics:     chatMetrics,
 	})
 	if err != nil {
 		logger.Error("create chat service failed", "error", err)
@@ -91,6 +97,8 @@ func main() {
 		PythonGRPC:        grpcClient.Check,
 		RequirePythonGRPC: true,
 		Chat:              chatService,
+		Metrics:           chatMetrics,
+		MetricsRegistry:   metricsRegistry,
 	})
 
 	serverErrors := make(chan error, 1)

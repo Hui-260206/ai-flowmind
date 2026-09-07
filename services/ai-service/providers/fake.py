@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 from collections.abc import Sequence
 
 from ai.v1 import common_pb2
@@ -24,6 +26,9 @@ class FakeProvider(ChatProvider):
         max_output_tokens: int,
         temperature: float,
     ) -> ProviderResult:
+        delay = float(os.getenv("AI_FAKE_PROVIDER_DELAY", "0"))
+        if delay > 0:
+            await asyncio.sleep(delay)
         logger.info(
             "fake provider called model_profile=%s messages=%d max_output_tokens=%d temperature=%s",
             context.model_profile,

@@ -8,9 +8,22 @@ import (
 	"testing"
 	"time"
 
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/model"
 	"ai-flowmind/services/go-api/internal/repository"
 )
+
+type recordingMetrics struct{ persisted []string }
+
+func (m *recordingMetrics) ObserveChatRequest(string, string, int, time.Duration) {}
+func (m *recordingMetrics) ObserveGRPC(string, time.Duration)                     {}
+func (m *recordingMetrics) IncAITimeout()                                         {}
+func (m *recordingMetrics) IncMessagePersistFailure(stage string) {
+	m.persisted = append(m.persisted, stage)
+}
+func (m *recordingMetrics) IncRedisLockFailure(string) {}
+
+var _ metrics.ChatMetrics = (*recordingMetrics)(nil)
 
 func TestFakeCompleterReturnsDeterministicCompletedResult(t *testing.T) {
 	result, err := (FakeCompleter{}).Complete(context.Background(), CompletionRequest{})
@@ -141,6 +154,18 @@ func TestSendMessageMapsDatabaseDuplicateToDuplicateRequest(t *testing.T) {
 	}
 	if completer.calls != 0 {
 		t.Fatalf("completer calls = %d, want 0", completer.calls)
+	}
+}
+
+func TestSendMessageRecordsPersistenceFailure(t *testing.T) {
+	repos := newMemoryRepositories()
+	repos.appendErr = errors.New("database unavailable")
+	collector := &recordingMetrics{}
+	service, _ := New(Dependencies{Sessions: repos, Messages: repos, Operations: memorySendOperations{repos}, Completer: &recordingCompleter{}, Reliability: NewMemoryReliability(20), Now: time.Now, NewID: sequentialID(), Metrics: collector})
+	created, _ := service.CreateSession(context.Background(), CreateSessionInput{ClientID: testClientID})
+	_, err := service.SendMessage(context.Background(), SendMessageInput{ClientID: testClientID, SessionID: created.Session.ID, Content: "persist", ClientMessageID: "persist-failure"})
+	if err == nil || len(collector.persisted) != 1 || collector.persisted[0] != "user" {
+		t.Fatalf("SendMessage() / persistence metrics = %v / %#v", err, collector.persisted)
 	}
 }
 

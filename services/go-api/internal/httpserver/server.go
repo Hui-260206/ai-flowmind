@@ -9,9 +9,12 @@ import (
 	"ai-flowmind/services/go-api/internal/chat"
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/health"
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Dependencies struct {
@@ -23,6 +26,8 @@ type Dependencies struct {
 	// 完成器接入后应设为 true。
 	RequirePythonGRPC bool
 	Chat              *chat.Service
+	Metrics           *metrics.Collector
+	MetricsRegistry   *prometheus.Registry
 }
 type Server struct{ httpServer *http.Server }
 
@@ -43,8 +48,17 @@ func New(cfg config.HTTPConfig, logger *slog.Logger, dependencies Dependencies) 
 	checker := health.NewChecker(readinessDependencies...)
 	router.GET("/healthz", health.Healthz)
 	router.GET("/readyz", checker.Handler())
+	registry := dependencies.MetricsRegistry
+	if registry == nil {
+		registry = prometheus.NewRegistry()
+	}
+	collector := dependencies.Metrics
+	if collector == nil {
+		collector = metrics.New(registry)
+	}
+	router.GET("/metrics", gin.WrapH(promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
 	if dependencies.Chat != nil {
-		handler := newChatHandler(dependencies.Chat)
+		handler := newChatHandler(dependencies.Chat, collector)
 		sessions := router.Group("/api/v1/sessions")
 		sessions.POST("", handler.createSession)
 		sessions.GET("", handler.listSessions)

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	pb "ai-flowmind/services/go-api/internal/grpcclient/pb"
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/model"
 	"ai-flowmind/services/go-api/internal/requestid"
 
@@ -25,16 +27,41 @@ type GRPCChatClient interface {
 }
 
 // GRPCCompleter 把领域补全请求映射为 Python AI 服务的 gRPC 调用。
-type GRPCCompleter struct{ client GRPCChatClient }
+type GRPCCompleter struct {
+	client  GRPCChatClient
+	metrics metrics.ChatMetrics
+}
 
-func NewGRPCCompleter(client GRPCChatClient) (*GRPCCompleter, error) {
+func NewGRPCCompleter(client GRPCChatClient, configured ...metrics.ChatMetrics) (*GRPCCompleter, error) {
 	if client == nil {
 		return nil, fmt.Errorf("grpc chat client: %w", ErrInvalidArgument)
 	}
-	return &GRPCCompleter{client: client}, nil
+	collector := metrics.Noop()
+	if len(configured) > 0 && configured[0] != nil {
+		collector = configured[0]
+	}
+	return &GRPCCompleter{client: client, metrics: collector}, nil
 }
 
-func (c *GRPCCompleter) Complete(ctx context.Context, input CompletionRequest) (CompletionResult, error) {
+func (c *GRPCCompleter) Complete(ctx context.Context, input CompletionRequest) (result CompletionResult, retErr error) {
+	started := time.Now()
+	defer func() {
+		outcome := "success"
+		if retErr != nil {
+			switch {
+			case errors.Is(retErr, ErrAITimeout):
+				outcome = "timeout"
+				c.metrics.IncAITimeout()
+			case errors.Is(retErr, ErrAIUnavailable):
+				outcome = "unavailable"
+			case errors.Is(retErr, ErrAIProvider):
+				outcome = "provider_error"
+			default:
+				outcome = "error"
+			}
+		}
+		c.metrics.ObserveGRPC(outcome, time.Since(started))
+	}()
 	response, err := c.client.Complete(ctx, &pb.CompleteRequest{
 		Context: &pb.RequestContext{
 			RequestId:      requestid.FromContext(ctx),

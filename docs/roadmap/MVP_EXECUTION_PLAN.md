@@ -361,39 +361,41 @@ conversation.title.generate.requested
 
 ## 12. 阶段 8：服务端测试和可观测性
 
+> 🟡 实现完成、待运行态复验（2026-09-07）。已完成服务端单元、真实 MySQL/Redis/Python Fake Provider 严格 E2E 验证、MySQL/Redis/Python 故障演练、HTTP 客户端取消、基础 Prometheus 指标、跨服务 `request_id` 日志关联，以及完整 Go/Python/MySQL/Redis Docker Compose 编排。当前桌面环境未安装 Docker CLI，无法执行 Compose 启动验收；在具备 Docker 的机器运行 `make compose-up` 和 `/readyz` 后即可关闭最后一项。
+
 ### 单元测试
 
-- [ ] 会话创建和归属校验；
-- [ ] 消息顺序；
-- [ ] 消息长度限制；
-- [ ] 上下文截断；
-- [ ] 幂等逻辑；
-- [ ] 会话锁；
-- [ ] 限流；
-- [ ] gRPC 错误转换；
-- [ ] Provider 选择和错误处理。
+- [x] 会话创建和归属校验；
+- [x] 消息顺序；
+- [x] 消息长度限制；
+- [x] 上下文截断；
+- [x] 幂等逻辑；
+- [x] 会话锁；
+- [x] 限流；
+- [x] gRPC 错误转换；
+- [x] Provider 选择和错误处理。
 
 ### 集成测试
 
-- [ ] Go + MySQL；
-- [ ] Go + Redis；
-- [ ] Go + Python gRPC；
-- [ ] Go + RabbitMQ（如果启用）；
-- [ ] 端到端发送消息；
-- [ ] 服务重启恢复历史。
+- [x] Go + MySQL；
+- [x] Go + Redis；
+- [x] Go + Python gRPC；
+- [x] Go + RabbitMQ（未启用；MVP 明确不引入 RabbitMQ）；
+- [x] 端到端发送消息；
+- [x] 服务重启恢复历史。
 
 ### 异常测试
 
-- [ ] Python 服务不可用；
-- [ ] Python 服务超时；
-- [ ] MySQL 暂时不可用；
-- [ ] Redis 暂时不可用；
-- [ ] 重复发送；
-- [ ] 并发发送；
-- [ ] 会话不存在；
-- [ ] 越权访问；
-- [ ] 空消息和超长消息；
-- [ ] HTTP 客户端取消请求。
+- [x] Python 服务不可用；
+- [x] Python 服务超时；
+- [x] MySQL 暂时不可用；
+- [x] Redis 暂时不可用；
+- [x] 重复发送；
+- [x] 并发发送；
+- [x] 会话不存在；
+- [x] 越权访问；
+- [x] 空消息和超长消息；
+- [x] HTTP 客户端取消请求。
 
 ### 基础指标
 
@@ -409,14 +411,14 @@ redis_lock_failed_total
 
 ### 移动端接入前门槛
 
-- [ ] curl 可以完整完成对话；
-- [ ] 聊天记录可查询；
-- [ ] 服务重启后数据不丢失；
-- [ ] 重复请求有幂等保护；
-- [ ] Python 不可用时错误可控；
-- [ ] 会话越权测试通过；
-- [ ] Docker Compose 可启动本地服务端；
-- [ ] Go 和 Python 日志可关联。
+- [x] curl 可以完整完成对话；
+- [x] 聊天记录可查询；
+- [x] 服务重启后数据不丢失；
+- [x] 重复请求有幂等保护；
+- [x] Python 不可用时错误可控；
+- [x] 会话越权测试通过；
+- [ ] Docker Compose 可启动本地服务端（编排和镜像定义已完成，待 Docker 运行态验收）；
+- [x] Go 和 Python 日志可关联。
 
 ## 13. 阶段 9：Kuikly 网络层接入
 
@@ -584,21 +586,21 @@ Go 服务重启
 
 ### Milestone 1：服务端可用
 
-- [ ] curl 创建会话；
-- [ ] curl 发送消息；
-- [ ] curl 查询历史；
-- [ ] Go 调用 Python gRPC；
-- [ ] MySQL 保存消息。
+- [x] curl 创建会话；
+- [x] curl 发送消息；
+- [x] curl 查询历史；
+- [x] Go 调用 Python gRPC；
+- [x] MySQL 保存消息。
 
 ### Milestone 2：服务端可靠
 
-- [ ] Redis 幂等；
-- [ ] Redis 会话锁；
-- [ ] 基础限流；
-- [ ] 统一错误；
-- [ ] request_id；
-- [ ] 服务端测试；
-- [ ] 服务重启数据不丢失。
+- [x] Redis 幂等；
+- [x] Redis 会话锁；
+- [x] 基础限流；
+- [x] 统一错误；
+- [x] request_id；
+- [x] 服务端测试；
+- [x] 服务重启数据不丢失。
 
 ### Milestone 3：移动端可用
 
@@ -616,9 +618,9 @@ Go 服务重启
 - [ ] RabbitMQ；
 - [ ] 异步事件；
 - [ ] AI 使用量统计；
-- [ ] 基础指标；
+- [x] 基础指标；
 - [ ] Agent、Vision、Tool 接口预留；
-- [ ] Docker Compose 完整联调。
+- [ ] Docker Compose 完整联调（编排完成；待 Docker 环境运行态复验）。
 
 ## 18. 后续版本顺序
 

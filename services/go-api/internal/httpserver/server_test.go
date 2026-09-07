@@ -8,9 +8,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"ai-flowmind/services/go-api/internal/config"
 	"ai-flowmind/services/go-api/internal/health"
+	"ai-flowmind/services/go-api/internal/metrics"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func testServer() *Server {
@@ -158,5 +162,26 @@ func TestMissingRouteUsesContractErrorEnvelope(t *testing.T) {
 	}
 	if body.RequestID == "" || body.Error.RequestID != "" || body.Error.Code != "NOT_FOUND" || body.Error.Message == "" {
 		t.Fatalf("unexpected error body: %s", res.Body.String())
+	}
+}
+
+func TestMetricsRemainAvailableWhenReadinessFails(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	collector := metrics.New(registry)
+	collector.ObserveChatRequest("success", "", http.StatusOK, time.Millisecond)
+	server := New(config.HTTPConfig{Addr: ":8080"}, nil, Dependencies{
+		RequirePythonGRPC: true,
+		Metrics:           collector,
+		MetricsRegistry:   registry,
+	})
+	ready := httptest.NewRecorder()
+	server.Handler().ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if ready.Code != http.StatusServiceUnavailable {
+		t.Fatalf("readyz = %d, want 503", ready.Code)
+	}
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Type"), "text/plain") || !strings.Contains(response.Body.String(), "chat_request_total") {
+		t.Fatalf("metrics response = %d %q %s", response.Code, response.Header().Get("Content-Type"), response.Body.String())
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ai-flowmind/services/go-api/internal/chat"
+	"ai-flowmind/services/go-api/internal/metrics"
 	"ai-flowmind/services/go-api/internal/middleware"
 	"ai-flowmind/services/go-api/internal/model"
 
@@ -14,7 +15,10 @@ import (
 
 const clientIDHeader = "X-Client-ID"
 
-type chatHandler struct{ service *chat.Service }
+type chatHandler struct {
+	service *chat.Service
+	metrics metrics.ChatMetrics
+}
 
 type sessionResponse struct {
 	ID           string    `json:"id"`
@@ -42,7 +46,12 @@ type sendMessageRequest struct {
 	ModelProfile    string `json:"model_profile"`
 }
 
-func newChatHandler(service *chat.Service) *chatHandler { return &chatHandler{service: service} }
+func newChatHandler(service *chat.Service, collector metrics.ChatMetrics) *chatHandler {
+	if collector == nil {
+		collector = metrics.Noop()
+	}
+	return &chatHandler{service: service, metrics: collector}
+}
 
 func (h *chatHandler) createSession(c *gin.Context) {
 	result, err := h.service.CreateSession(c.Request.Context(), chat.CreateSessionInput{ClientID: c.GetHeader(clientIDHeader)})
@@ -93,8 +102,12 @@ func (h *chatHandler) listMessages(c *gin.Context) {
 }
 
 func (h *chatHandler) sendMessage(c *gin.Context) {
+	started := time.Now()
+	status, code, outcome := http.StatusOK, "", "success"
+	defer func() { h.metrics.ObserveChatRequest(outcome, code, status, time.Since(started)) }()
 	var request sendMessageRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
+		status, code, outcome = http.StatusBadRequest, "INVALID_ARGUMENT", "error"
 		middleware.ErrorResponse(c, http.StatusBadRequest, "INVALID_ARGUMENT", "invalid JSON request body")
 		return
 	}
@@ -106,14 +119,43 @@ func (h *chatHandler) sendMessage(c *gin.Context) {
 		ModelProfile:    request.ModelProfile,
 	})
 	if err != nil {
+		status, code, outcome = chatErrorStatus(err)
 		writeChatError(c, err)
 		return
+	}
+	if result.Replayed {
+		outcome = "replay"
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"request_id":        middleware.GetRequestID(c),
 		"user_message":      toMessageResponse(result.UserMessage),
 		"assistant_message": toMessageResponse(result.AssistantMessage),
 	})
+}
+
+func chatErrorStatus(err error) (int, string, string) {
+	switch {
+	case errors.Is(err, chat.ErrInvalidArgument):
+		return http.StatusBadRequest, "INVALID_ARGUMENT", "error"
+	case errors.Is(err, chat.ErrSessionNotFound):
+		return http.StatusNotFound, "SESSION_NOT_FOUND", "error"
+	case errors.Is(err, chat.ErrDuplicateRequest):
+		return http.StatusConflict, "DUPLICATE_REQUEST", "error"
+	case errors.Is(err, chat.ErrSessionBusy):
+		return http.StatusConflict, "SESSION_BUSY", "error"
+	case errors.Is(err, chat.ErrRateLimited):
+		return http.StatusTooManyRequests, "RATE_LIMITED", "error"
+	case errors.Is(err, chat.ErrRedisUnavailable):
+		return http.StatusServiceUnavailable, "REDIS_UNAVAILABLE", "error"
+	case errors.Is(err, chat.ErrAITimeout):
+		return http.StatusGatewayTimeout, "AI_TIMEOUT", "timeout"
+	case errors.Is(err, chat.ErrAIUnavailable):
+		return http.StatusBadGateway, "AI_UNAVAILABLE", "error"
+	case errors.Is(err, chat.ErrAIProvider):
+		return http.StatusBadGateway, "AI_PROVIDER_ERROR", "error"
+	default:
+		return http.StatusInternalServerError, "INTERNAL_ERROR", "error"
+	}
 }
 
 func writeChatError(c *gin.Context, err error) {
