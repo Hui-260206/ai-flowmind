@@ -15,4 +15,8 @@ object ChatRepositoryFactory {
             pager.acquireModule(SharedPreferencesModule.MODULE_NAME),
         ),
     )
+
+    fun selectedSessionStore(pager: Pager) = com.heli.flowmind.state.SharedPreferencesSelectedSessionStore(
+        pager.acquireModule(SharedPreferencesModule.MODULE_NAME),
+    )
 }
