@@ -18,7 +18,7 @@ class MockChatRepository : ChatRepository {
         return session
     }
 
-    override suspend fun listSessions(): List<ChatSession> = sessions.values.reversed()
+    override suspend fun listSessions(): List<ChatSession> = sessions.values.sortedByDescending { it.updatedAt }
 
     override suspend fun getMessages(sessionId: String): List<ChatMessage> =
         messagesBySession[sessionId]?.toList() ?: throw missingSession()
@@ -40,7 +40,12 @@ class MockChatRepository : ChatRepository {
         history += user
         history += assistant
         sessions[sessionId]?.let { session ->
-            sessions[sessionId] = session.copy(title = if (session.title == "新会话") user.content.take(32) else session.title, updatedAt = now)
+            val title = if (session.title == "新会话") {
+                if (user.content.length <= 32) user.content else user.content.take(32) + "…"
+            } else {
+                session.title
+            }
+            sessions[sessionId] = session.copy(title = title, updatedAt = now)
         }
         return SendMessageResult("mock-$clientMessageId", user, assistant)
     }

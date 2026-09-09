@@ -75,7 +75,7 @@ class RemoteChatRepository(
             // Do not surface that unstable implementation detail in shared UI.
             ChatException(
                 code = ChatException.TRANSPORT_ERROR,
-                message = if (response.statusCode == null) {
+                message = if (response.statusCode == null || !response.success) {
                     "网络连接失败，请检查网络后重试"
                 } else {
                     "服务请求失败，请稍后重试"

@@ -45,12 +45,19 @@ class NetworkModuleChatHttpTransport(private val networkModule: NetworkModule) :
                 return@toNative
             }
             val dataString = result.optString("data")
+            val nativeSuccess = result.optInt("success")
+            val nativeStatusCode = if (result.has("statusCode")) result.optInt("statusCode") else null
+            // Kuikly iOS puts NSError.code (for example, timeout = -1001) in
+            // statusCode when no HTTP response was received. Expose only real
+            // HTTP status codes to the repository.
+            val statusCode = nativeStatusCode?.takeIf { it in 100..599 }
+            val errorMessage = result.optString("errorMsg")
             val response = ChatHttpResponse(
-                success = result.optInt("success") == 1,
-                statusCode = if (result.has("statusCode")) result.optInt("statusCode") else null,
+                success = nativeSuccess == 1,
+                statusCode = statusCode,
                 headers = parseHeaders(result.optString("headers")),
                 body = dataString.takeIf { it.isNotBlank() }?.let(::parseJson),
-                errorMessage = result.optString("errorMsg"),
+                errorMessage = errorMessage,
             )
             continuation.resume(response)
         })

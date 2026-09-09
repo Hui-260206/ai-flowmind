@@ -58,6 +58,24 @@ class RemoteChatRepositoryTest {
     }
 
     @Test
+    fun `native URL error code is treated as transport failure`() = runSuspend {
+        val error = assertFailsWith<ChatException> {
+            repository(
+                FakeTransport(
+                    ChatHttpResponse(
+                        success = false,
+                        statusCode = -1001,
+                        errorMessage = "The request timed out.",
+                    ),
+                ),
+            ).listSessions()
+        }
+
+        assertEquals(ChatException.TRANSPORT_ERROR, error.code)
+        assertEquals("网络连接失败，请检查网络后重试", error.message)
+    }
+
+    @Test
     fun `missing required success field is rejected`() = runSuspend {
         val transport = FakeTransport(ChatHttpResponse(true, 201, body = json("""
             {"id":"s1","title":"new","model_profile":"default","created_at":"now"}
