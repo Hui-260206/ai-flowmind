@@ -10,12 +10,16 @@ struct ContentView: View {
         let environment = ProcessInfo.processInfo.environment
         let environmentURL = environment["FLOWMIND_CHAT_API_BASE_URL"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         let bundledURL = Bundle.main.object(forInfoDictionaryKey: Self.apiBaseURLInfoKey) as? String
-        let baseURL = (environmentURL?.isEmpty == false ? environmentURL : bundledURL?.trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
-
-        guard !baseURL.isEmpty else {
-            // An unconfigured Debug host deliberately keeps the page on Mock data.
-            return [:]
-        }
+        #if targetEnvironment(simulator)
+        let defaultURL = "http://127.0.0.1:8080"
+        #else
+        let defaultURL = ""
+        #endif
+        let configuredURL = environmentURL?.isEmpty == false
+            ? environmentURL
+            : bundledURL?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseURL = configuredURL?.isEmpty == false ? configuredURL! : defaultURL
+        guard !baseURL.isEmpty else { return [:] }
         return [
             "chatApiBaseUrl": baseURL,
             "chatApiProduction": false,

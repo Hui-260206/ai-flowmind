@@ -434,6 +434,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = TV3P5HKTWG;
 				ENABLE_PREVIEWS = YES;
+				FLOWMIND_CHAT_API_BASE_URL = "http://192.168.43.62:8080";
 				INFOPLIST_FILE = iosApp/Info-Debug.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

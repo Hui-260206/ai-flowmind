@@ -19,7 +19,7 @@ android {
             buildConfigField(
                 "String",
                 "CHAT_API_BASE_URL",
-                "\"${providers.gradleProperty("flowmind.chatApiBaseUrl").orElse("").get()}\"",
+                "\"${providers.gradleProperty("flowmind.chatApiBaseUrl").orElse("http://127.0.0.1:8080").get()}\"",
             )
             buildConfigField("boolean", "CHAT_API_PRODUCTION", "false")
         }
