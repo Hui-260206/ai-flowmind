@@ -11,9 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `flow-mind` 由两部分组成：
 
 - **客户端**（`mobile/`）：基于 **Kuikly**（腾讯 Kotlin Multiplatform 框架），UI 在 `mobile/shared` 用 Kotlin / Kuikly Compose 编写一次，在 **Android / iOS** 原生渲染。**HarmonyOS（OHOS）脚手架保留但不维护、不在构建范围内。**
-- **后端**（`services/`）：**Go API 服务 + Python AI 服务** 双服务架构，目前均为空目录、待搭建。
+- **后端**（`services/`）：已完成 **Go API 服务 + Python AI 服务** 双服务 MVP，并具备本机与 Docker Compose 两种运行方式。
   - `go-api/`：Go 实现的 REST/gRPC 服务，移动端唯一对外 API，负责会话/消息业务、匿名设备隔离、MySQL 持久化、上下文控制、Redis（幂等/锁/限流）、调用 Python gRPC。
-  - `ai-service/`：Python + FastAPI 的 AI 服务，负责模型调用、Provider 适配、参数校验、AI 错误转换，经 gRPC 被 Go 调用；模型密钥仅此侧保存、不对公网暴露。
+  - `ai-service/`：Python 纯 gRPC AI 服务，负责模型调用、Provider 适配、参数校验和错误转换；模型密钥仅此侧保存、不对公网暴露，不引入 FastAPI/HTTP。
   - 依赖 **MySQL**（事实来源）、**Redis**（幂等/锁/限流）；MVP 不引入消息队列，RabbitMQ 仅作为未来异步扩展选项。
   - 完整设计见 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](docs/roadmap/MVP_EXECUTION_PLAN.md) 和 [`docs/README.md`](docs/README.md)。
 
@@ -57,8 +57,8 @@ Kuikly 移动端 ──HTTPS JSON──▶ Go API ──gRPC──▶ Python AI 
 
 - Go API 是移动端唯一业务 API；Python AI 不暴露公网、不持会话所有权与业务库。
 - MySQL 是聊天记录唯一事实来源，Redis/进程内存不替代它；MVP 普通聊天采用同步 HTTP + gRPC，不依赖消息队列。
-- 对外 REST（MVP）：`GET /healthz`、`/readyz`；`POST/GET /api/v1/sessions`；`GET/POST/DELETE /api/v1/sessions/{id}/messages`。业务请求带 `X-Client-ID`（匿名 UUID）与 `X-Request-ID`；错误格式见需求文档第 8 节。
-- 当前 `go-api`/`ai-service` 为空：先定接口/边界（proto、OpenAPI、数据模型、Redis Key），再做 Go 工程、数据层、聊天 API，接 Python gRPC，补 Redis 能力，最后联调达标再接入 `data/RemoteChatRepository.kt`（阶段 9）。Outbox/MQ 不属于 MVP 主链路，未来按需单独引入。
+- 对外 REST（MVP）：`GET /healthz`、`GET /readyz`、`GET /metrics`；`POST/GET /api/v1/sessions`；`DELETE /api/v1/sessions/{id}`；`GET/POST /api/v1/sessions/{id}/messages`。业务请求带 `X-Client-ID`（匿名 UUID）与 `X-Request-ID`，错误使用统一 JSON 包络。
+- 当前生产组合根由 Go REST API、MySQL Repository、Redis 可靠性适配器和 Python gRPC Completer 组成；移动端 `RemoteChatRepository` 已接入该 REST 契约。Outbox 表与 Repository 仅作扩展基础，Publisher/MQ 不属于 MVP 主链路，未来按需单独引入。
 
 ## 测试
 

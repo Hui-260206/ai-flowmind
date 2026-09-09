@@ -31,9 +31,9 @@
 `flow-mind` 是一个面向移动端的 AI 对话应用，分两部分：
 
 - **客户端** `mobile/`：基于 **Kuikly**（腾讯 Kotlin Multiplatform 框架）。UI 与业务逻辑全部写在 `mobile/shared`（`src/commonMain`）里，用 Kotlin / Kuikly Compose 一次编写，在 **Android 与 iOS** 原生渲染。**HarmonyOS（OHOS）脚手架保留但不维护、不在构建范围内。**
-- **服务端** `services/`：按 MVP 设计为 **Go API 服务 + Python AI 服务**，内部通过 gRPC 通信，外部对移动端暴露唯一 REST API。依赖 MySQL（事实来源）和 Redis（幂等/锁/限流）；MVP 不引入消息队列。开发阶段 MySQL/Redis 运行在 Mac 本机，后续部署再迁移到 Docker。
+- **服务端** `services/`：按 MVP 设计为 **Go API 服务 + Python AI 服务**，内部通过 gRPC 通信，外部对移动端暴露唯一 REST API。依赖 MySQL（事实来源）和 Redis（幂等/锁/限流）；MVP 不引入消息队列。本机原生开发与完整 Docker Compose 拓扑均已提供。
 
-> 注意：`CLAUDE.md` 中"后端为 Python + FastAPI"是早期设想；当前 MVP 已演进为 Go + Python 双服务架构，以 [`docs/phase-0/MVP_REQUIREMENTS.md`](docs/phase-0/MVP_REQUIREMENTS.md) 和 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](docs/roadmap/MVP_EXECUTION_PLAN.md) 为准。
+> 当前 MVP 已完成。能力范围和验收记录以 [`docs/roadmap/MVP_EXECUTION_PLAN.md`](docs/roadmap/MVP_EXECUTION_PLAN.md)、[`openspec/specs/`](openspec/specs/) 与实现代码为准；已删除的 `docs/phase-*` 不再作为文档来源。
 
 Kotlin 包名：`com.heli.flowmind`。Kuikly 运行时版本 `2.7.0-2.1.21`（定义在 `mobile/buildSrc/.../KotlinBuildVar.kt` 的 `Version`/`BuildPlugin`，改版本只改这里）。
 
