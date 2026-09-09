@@ -314,6 +314,7 @@ internal fun Button(
     onClick: () -> Unit = {},
     onClick2: (Offset) -> Unit = {},
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     content: (@Composable () -> Unit) = {}
 ) {
     var rootPosition by remember { mutableStateOf(Offset.Zero) }
@@ -325,21 +326,24 @@ internal fun Button(
             .onGloballyPositioned {
                 rootPosition = it.positionInRoot()
             }
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    // 获取点击的相对于 Box 的坐标
-                    val clickedPositionInBox = offset
-                    // 转换为相对于根节点的位置
-                    val clickedPositionInRoot = with(density) {
-                        Offset(
-                            (clickedPositionInBox.x + rootPosition.x).toDp().value,
-                            (clickedPositionInBox.y + rootPosition.y).toDp().value
-                        )
+            .then(
+                if (enabled) {
+                    Modifier.pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            val clickedPositionInRoot = with(density) {
+                                Offset(
+                                    (offset.x + rootPosition.x).toDp().value,
+                                    (offset.y + rootPosition.y).toDp().value
+                                )
+                            }
+                            onClickUpdate.value.invoke()
+                            onClick2Update.value.invoke(clickedPositionInRoot)
+                        }
                     }
-                    onClickUpdate.value.invoke()
-                    onClick2Update.value.invoke(clickedPositionInRoot)
+                } else {
+                    Modifier
                 }
-            } then modifier, contentAlignment = Alignment.Center) {
+            ) then modifier, contentAlignment = Alignment.Center) {
         content()
     }
 }
@@ -358,6 +362,7 @@ internal fun TextField(
     modifier: Modifier = Modifier,
     value: String = "",
     placeholder: String = "",
+    enabled: Boolean = true,
     autoFocus: Boolean = true,
     onValueChange: (String) -> Unit,
     onBlur: () -> Unit = {},
@@ -408,7 +413,8 @@ internal fun TextField(
         onTextLayout = currentOnTextLayout,
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
-        cursorBrush = cursorBrush
+        cursorBrush = cursorBrush,
+        enabled = enabled,
     )
 
     LaunchedEffect(autoFocus) {

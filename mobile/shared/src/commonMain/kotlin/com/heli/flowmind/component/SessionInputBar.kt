@@ -10,6 +10,7 @@ import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.padding
+import com.tencent.kuikly.compose.foundation.text.maxLength
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
@@ -22,6 +23,8 @@ fun SessionInputBar(
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
     onKeyboardHeightChange: (KeyboardParams) -> Unit,
+    inputEnabled: Boolean = true,
+    sendEnabled: Boolean = true,
 ) {
     // 外层 Box 让整个输入条在底部栏内水平居中
     Box(
@@ -41,18 +44,21 @@ fun SessionInputBar(
             TextField(
                 modifier = Modifier.fillMaxWidth()
                     .padding(start = AppDimens.InputTextStart, end = AppDimens.InputTextEnd,
-                             top = AppDimens.InputTextVertical, bottom = AppDimens.InputTextVertical),
+                             top = AppDimens.InputTextVertical, bottom = AppDimens.InputTextVertical)
+                    .maxLength(SESSION_MESSAGE_MAX_LENGTH),
                 value = value,
                 placeholder = "输入消息...",
                 placeholderColor = AppColors.Hint,
+                enabled = inputEnabled,
                 onValueChange = onValueChange,
                 keyboardHeightChange = onKeyboardHeightChange,
             )
             Button(
                 modifier = Modifier.align(Alignment.CenterEnd)
-                    .background(color = AppColors.Primary, shape = AppShapes.SendButton)
+                    .background(color = if (sendEnabled) AppColors.Primary else AppColors.Hint, shape = AppShapes.SendButton)
                     .padding(horizontal = AppDimens.ButtonHorizontal, vertical = AppDimens.ButtonVertical),
                 onClick = onSend,
+                enabled = sendEnabled,
             ) {
                 Text(text = "发送", color = AppColors.PrimaryText)
             }

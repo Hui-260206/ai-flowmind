@@ -3,6 +3,7 @@ package com.heli.flowmind.component
 import androidx.compose.runtime.Composable
 import com.heli.flowmind.model.Message
 import com.heli.flowmind.model.MessageRole
+import com.heli.flowmind.model.MessageStatus
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
@@ -17,9 +18,12 @@ import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.BoxWithConstraints
 import com.tencent.kuikly.compose.foundation.layout.widthIn
+import com.tencent.kuikly.compose.foundation.layout.Column
+import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.ui.graphics.Color
 
 @Composable
-fun MessageBubble(message: Message) {
+fun MessageBubble(message: Message, onRetry: () -> Unit = {}) {
     val isUser = message.role == MessageRole.USER
     val bgColor = if (isUser) AppColors.BubbleUser else AppColors.BubbleAssistant
     val fgColor = if (isUser) AppColors.OnBubbleUser else AppColors.OnBubbleAssistant
@@ -34,7 +38,7 @@ fun MessageBubble(message: Message) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .widthIn(max = maxBubbleWidth)
                     .background(color = bgColor, shape = AppShapes.Bubble)
@@ -45,6 +49,17 @@ fun MessageBubble(message: Message) {
                     color = fgColor,
                     fontSize = AppDimens.BodyTextSize,
                 )
+                if (message.status == MessageStatus.SENDING) {
+                    Text(text = "生成中…", color = AppColors.Hint, fontSize = AppDimens.BodyTextSize)
+                }
+                if (message.isRetryableAssistantFailure()) {
+                    Text(
+                        text = "重试",
+                        color = Color(0xFFD04A4A),
+                        fontSize = AppDimens.BodyTextSize,
+                        modifier = Modifier.padding(top = AppDimens.MessageSpacing).clickable(onClick = onRetry),
+                    )
+                }
             }
         }
     }

@@ -13,19 +13,19 @@ import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
+import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
-import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.dp
 
-
 @Composable
 fun SessionMessageList(
+    sessionId: String?,
     messages: List<Message>,
     modifier: Modifier = Modifier,
-    // 底部留白 = 输入栏高度 + 键盘高度,让最后一条消息能滚到浮层输入栏上方的可见区
     bottomInset: Dp = 0.dp,
+    onRetry: () -> Unit = {},
 ) {
     if (messages.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -35,8 +35,8 @@ fun SessionMessageList(
     }
 
     val listState = rememberLazyListState()
-    // 新消息到达时滚到底部
-    LaunchedEffect(messages.lastOrNull()?.id) {
+    val tailState = messageListTailState(sessionId, messages)
+    LaunchedEffect(tailState) {
         listState.animateScrollToItem(messages.lastIndex)
     }
 
@@ -48,8 +48,8 @@ fun SessionMessageList(
             bottom = AppDimens.MessageSpacing + bottomInset,
         ),
     ) {
-        items(messages, key = { it.id }) { msg ->
-            MessageBubble(message = msg)
+        items(messages, key = { it.id }) { message ->
+            MessageBubble(message = message, onRetry = onRetry)
             Spacer(Modifier.height(AppDimens.MessageSpacing))
         }
     }
